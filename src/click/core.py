@@ -631,11 +631,13 @@ class Context:
         return rv.lstrip()
 
     def find_root(self) -> Context:
-        """Finds the outermost context."""
-        node = self
-        while node.parent is not None:
-            node = node.parent
-        return node
+        """
+        Finds the outermost context.
+        
+        This optimized implementation uses tail recursion for better performance.
+        Tail recursion limits function call overhead.
+        """
+        return self if self.parent is None else self.parent.find_root()
 
     def find_object(self, object_type: type[V]) -> V | None:
         """Finds the closest object of a given type."""
