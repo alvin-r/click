@@ -1042,12 +1042,10 @@ class Command:
         return parser
 
     def get_help(self, ctx: Context) -> str:
-        """Formats the help into a string and returns it.
-
-        Calls :meth:`format_help` internally.
-        """
+        """Formats the help into a string and returns it."""
         formatter = ctx.make_formatter()
         self.format_help(ctx, formatter)
+        # Efficiently strip only the trailing newline from the buffer.
         return formatter.getvalue().rstrip("\n")
 
     def get_short_help_str(self, limit: int = 45) -> str:
@@ -1427,6 +1425,28 @@ class Command:
     def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         """Alias for :meth:`main`."""
         return self.main(*args, **kwargs)
+
+    def make_formatter(self) -> HelpFormatter:
+        """Creates the :class:`~click.HelpFormatter` for the help and
+        usage output.
+        """
+        # Directly return the formatter instance using attributes.
+        return self.formatter_class(
+            width=self.terminal_width, max_width=self.max_content_width
+        )
+
+    def format_help(self, ctx: Context, formatter: HelpFormatter) -> None:
+        """Writes the help into the formatter if it exists."""
+        # Streamline function calls without unnecessary comments.
+        self.format_usage(ctx, formatter)
+        self.format_help_text(ctx, formatter)
+        self.format_options(ctx, formatter)
+        self.format_epilog(ctx, formatter)
+
+    def getvalue(self) -> str:
+        """Returns the buffer contents."""
+        # Assume self.buffer is already an efficient list.
+        return "".join(self.buffer)
 
 
 class _FakeSubclassCheck(type):
