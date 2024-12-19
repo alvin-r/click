@@ -49,8 +49,9 @@ def safecall(func: t.Callable[P, R]) -> t.Callable[P, R | None]:
 def make_str(value: t.Any) -> str:
     """Converts a value into a valid string."""
     if isinstance(value, bytes):
+        fs_encoding = sys.getfilesystemencoding() or 'utf-8'
         try:
-            return value.decode(sys.getfilesystemencoding())
+            return value.decode(fs_encoding)
         except UnicodeError:
             return value.decode("utf-8", "replace")
     return str(value)
