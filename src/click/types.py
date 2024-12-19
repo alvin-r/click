@@ -65,15 +65,11 @@ class ParamType:
 
         .. versionadded:: 8.0
         """
-        # The class name without the "ParamType" suffix.
-        param_type = type(self).__name__.partition("ParamType")[0]
-        param_type = param_type.partition("ParameterType")[0]
+        # Remove unnecessary actions by directly checking and assigning the class name
+        param_type = type(self).__name__.replace("ParamType", "").replace("ParameterType", "")
 
-        # Custom subclasses might not remember to set a name.
-        if hasattr(self, "name"):
-            name = self.name
-        else:
-            name = param_type
+        # Efficiently use ternary operator for setting 'name'
+        name = getattr(self, "name", param_type)
 
         return {"param_type": param_type, "name": name}
 
