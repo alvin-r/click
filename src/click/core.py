@@ -950,7 +950,7 @@ class Command:
         }
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {self.name}>"
+        return f"<Command {self.name}>"
 
     def get_usage(self, ctx: Context) -> str:
         """Formats the usage line into a string and returns it.
