@@ -483,7 +483,6 @@ def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
         return False
 
     assert param.name is not None
-    # Will be None if expose_value is False.
     value = ctx.params.get(param.name)
     return (
         param.nargs == -1
@@ -498,11 +497,7 @@ def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
 
 def _start_of_option(ctx: Context, value: str) -> bool:
     """Check if the value looks like the start of an option."""
-    if not value:
-        return False
-
-    c = value[0]
-    return c in ctx._opt_prefixes
+    return value and value[0] in ctx._opt_prefixes
 
 
 def _is_incomplete_option(ctx: Context, args: list[str], param: Parameter) -> bool:
@@ -511,22 +506,11 @@ def _is_incomplete_option(ctx: Context, args: list[str], param: Parameter) -> bo
     :param args: List of complete args before the incomplete value.
     :param param: Option object being checked.
     """
-    if not isinstance(param, Option):
+    if not isinstance(param, Option) or param.is_flag or param.count:
         return False
 
-    if param.is_flag or param.count:
-        return False
-
-    last_option = None
-
-    for index, arg in enumerate(reversed(args)):
-        if index + 1 > param.nargs:
-            break
-
-        if _start_of_option(ctx, arg):
-            last_option = arg
-
-    return last_option is not None and last_option in param.opts
+    last_option = next((arg for arg in reversed(args[-param.nargs:]) if _start_of_option(ctx, arg)), None)
+    return last_option and last_option in param.opts
 
 
 def _resolve_context(
@@ -601,37 +585,61 @@ def _resolve_incomplete(
     :param args: List of complete args before the incomplete value.
     :param incomplete: Value being completed. May be empty.
     """
-    # Different shells treat an "=" between a long option name and
-    # value differently. Might keep the value joined, return the "="
-    # as a separate item, or return the split name and value. Always
-    # split and discard the "=" to make completion easier.
-    if incomplete == "=":
-        incomplete = ""
-    elif "=" in incomplete and _start_of_option(ctx, incomplete):
+    if "=" in incomplete and _start_of_option(ctx, incomplete):
         name, _, incomplete = incomplete.partition("=")
         args.append(name)
-
-    # The "--" marker tells Click to stop treating values as options
-    # even if they start with the option character. If it hasn't been
-    # given and the incomplete arg looks like an option, the current
-    # command will provide option name completions.
+    
     if "--" not in args and _start_of_option(ctx, incomplete):
         return ctx.command, incomplete
 
     params = ctx.command.get_params(ctx)
 
-    # If the last complete arg is an option name with an incomplete
-    # value, the option will provide value completions.
     for param in params:
         if _is_incomplete_option(ctx, args, param):
             return param, incomplete
 
-    # It's not an option name or value. The first argument without a
-    # parsed value will provide value completions.
     for param in params:
         if _is_incomplete_argument(ctx, param):
             return param, incomplete
 
-    # There were no unparsed arguments, the command may be a group that
-    # will provide command name completions.
     return ctx.command, incomplete
+
+
+def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
+    """Determine if the given parameter is an argument that can still
+    accept values.
+
+    :param ctx: Invocation context for the command represented by the
+        parsed complete args.
+    :param param: Argument object being checked.
+    """
+    if not isinstance(param, Argument):
+        return False
+
+    assert param.name is not None
+    value = ctx.params.get(param.name)
+    return (
+        param.nargs == -1
+        or ctx.get_parameter_source(param.name) is not ParameterSource.COMMANDLINE
+        or (
+            param.nargs > 1
+            and isinstance(value, (tuple, list))
+            and len(value) < param.nargs
+        )
+    )
+
+def _start_of_option(ctx: Context, value: str) -> bool:
+    """Check if the value looks like the start of an option."""
+    return value and value[0] in ctx._opt_prefixes
+
+def _is_incomplete_option(ctx: Context, args: list[str], param: Parameter) -> bool:
+    """Determine if the given parameter is an option that needs a value.
+
+    :param args: List of complete args before the incomplete value.
+    :param param: Option object being checked.
+    """
+    if not isinstance(param, Option) or param.is_flag or param.count:
+        return False
+
+    last_option = next((arg for arg in reversed(args[-param.nargs:]) if _start_of_option(ctx, arg)), None)
+    return last_option and last_option in param.opts
