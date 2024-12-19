@@ -728,7 +728,42 @@ class Context:
 
         :meta private:
         """
-        return type(self)(command, info_name=command.name, parent=self)
+        # Directly passing the necessary parameters reduces overhead
+        # compared to a full instantiation using type(self)
+        new_context = Context.__new__(Context)
+        new_context.command = command
+        new_context.info_name = command.name
+        new_context.parent = self
+
+        # Inherit commonly used attributes directly
+        new_context.params = {}
+        new_context.args = []
+        new_context._protected_args = []
+        new_context._opt_prefixes = set(self._opt_prefixes)
+        new_context.obj = self.obj
+        new_context._meta = self._meta
+
+        # Inherit or calculate any additional required attributes here
+        new_context.default_map = self.default_map
+        new_context.auto_envvar_prefix = self.auto_envvar_prefix
+        new_context.terminal_width = self.terminal_width
+        new_context.max_content_width = self.max_content_width
+        new_context.allow_extra_args = self.allow_extra_args
+        new_context.allow_interspersed_args = self.allow_interspersed_args
+        new_context.ignore_unknown_options = self.ignore_unknown_options
+        new_context.help_option_names = self.help_option_names
+        new_context.token_normalize_func = self.token_normalize_func
+        new_context.resilient_parsing = self.resilient_parsing
+        new_context.color = self.color
+        new_context.show_default = self.show_default
+
+        # Initialize the new context's unique attributes
+        new_context._close_callbacks = []
+        new_context._depth = 0
+        new_context._parameter_source = {}
+        new_context._exit_stack = ExitStack()
+
+        return new_context
 
     @t.overload
     def invoke(
