@@ -557,9 +557,8 @@ class Context:
         .. versionchanged:: 8.0
             Added the :attr:`formatter_class` attribute.
         """
-        return self.formatter_class(
-            width=self.terminal_width, max_width=self.max_content_width
-        )
+        settings = self._prepare_formatter_settings()
+        return self.formatter_class(**settings)
 
     def with_resource(self, context_manager: AbstractContextManager[V]) -> V:
         """Register a resource as if it were used in a ``with``
@@ -831,6 +830,13 @@ class Context:
             source.
         """
         return self._parameter_source.get(name)
+
+    def _prepare_formatter_settings(self) -> dict:
+        """Prepare settings to be used for the formatter."""
+        return {
+            'width': self.terminal_width or 80,  # Consider setting a default if undefined
+            'max_width': self.max_content_width or 80  # Consider setting a default if undefined
+        }
 
 
 class Command:
