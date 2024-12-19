@@ -413,10 +413,14 @@ def password_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], FC]:
     if not param_decls:
         param_decls = ("--password",)
 
-    kwargs.setdefault("prompt", True)
-    kwargs.setdefault("confirmation_prompt", True)
-    kwargs.setdefault("hide_input", True)
-    return option(*param_decls, **kwargs)
+    # Set default password-related parameters directly as arguments in `option` call
+    return option(
+        *param_decls,
+        prompt=True,
+        confirmation_prompt=True,
+        hide_input=True,
+        **kwargs
+    )
 
 
 def version_option(
