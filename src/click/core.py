@@ -75,16 +75,13 @@ def _check_nested_chain(
     if not base_command.chain or not isinstance(cmd, Group):
         return
 
-    if register:
-        message = (
-            f"It is not possible to add the group {cmd_name!r} to another"
-            f" group {base_command.name!r} that is in chain mode."
-        )
-    else:
-        message = (
-            f"Found the group {cmd_name!r} as subcommand to another group "
-            f" {base_command.name!r} that is in chain mode. This is not supported."
-        )
+    message = (
+        f"It is not possible to add the group {cmd_name!r} to another"
+        f" group {base_command.name!r} that is in chain mode." 
+        if register else
+        f"Found the group {cmd_name!r} as subcommand to another group "
+        f"{base_command.name!r} that is in chain mode. This is not supported."
+    )
 
     raise RuntimeError(message)
 
@@ -1935,16 +1932,14 @@ class CommandCollection(Group):
     def get_command(self, ctx: Context, cmd_name: str) -> Command | None:
         rv = super().get_command(ctx, cmd_name)
 
-        if rv is not None:
+        if rv is not None or not self.chain:
             return rv
 
         for source in self.sources:
             rv = source.get_command(ctx, cmd_name)
 
             if rv is not None:
-                if self.chain:
-                    _check_nested_chain(self, cmd_name, rv)
-
+                _check_nested_chain(self, cmd_name, rv)
                 return rv
 
         return None
@@ -1956,6 +1951,12 @@ class CommandCollection(Group):
             rv.update(source.list_commands(ctx))
 
         return sorted(rv)
+
+    def get_command(self, ctx: Context, cmd_name: str) -> Command | None:
+        """Given a context and a command name, this returns a :class:`Command`
+        object if it exists or returns ``None``.
+        """
+        return self.commands.get(cmd_name)
 
 
 def _check_iter(value: t.Any) -> cabc.Iterator[t.Any]:
@@ -3120,3 +3121,20 @@ def __getattr__(name: str) -> object:
         return _MultiCommand
 
     raise AttributeError(name)
+
+
+def _check_nested_chain(
+    base_command: Group, cmd_name: str, cmd: Command, register: bool = False
+) -> None:
+    if not base_command.chain or not isinstance(cmd, Group):
+        return
+
+    message = (
+        f"It is not possible to add the group {cmd_name!r} to another"
+        f" group {base_command.name!r} that is in chain mode." 
+        if register else
+        f"Found the group {cmd_name!r} as subcommand to another group "
+        f"{base_command.name!r} that is in chain mode. This is not supported."
+    )
+
+    raise RuntimeError(message)
