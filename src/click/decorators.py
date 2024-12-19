@@ -353,7 +353,7 @@ def argument(
 def option(
     *param_decls: str, cls: type[Option] | None = None, **attrs: t.Any
 ) -> t.Callable[[FC], FC]:
-    """Attaches an option to the command.  All positional arguments are
+    """Attaches an option to the command. All positional arguments are
     passed as parameter declarations to :class:`Option`; all keyword
     arguments are forwarded unchanged (except ``cls``).
     This is equivalent to creating an :class:`Option` instance manually
@@ -362,17 +362,16 @@ def option(
     For the default option class, refer to :class:`Option` and
     :class:`Parameter` for descriptions of parameters.
 
-    :param cls: the option class to instantiate.  This defaults to
+    :param cls: the option class to instantiate. This defaults to
                 :class:`Option`.
     :param param_decls: Passed as positional arguments to the constructor of
         ``cls``.
     :param attrs: Passed as keyword arguments to the constructor of ``cls``.
     """
-    if cls is None:
-        cls = Option
+    option_class = cls or Option  # Use inline conditional to avoid rebinding cls
 
     def decorator(f: FC) -> FC:
-        _param_memo(f, cls(param_decls, **attrs))
+        _param_memo(f, option_class(param_decls, **attrs))  # Use pre-determined option_class
         return f
 
     return decorator
