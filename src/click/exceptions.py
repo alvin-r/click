@@ -284,9 +284,7 @@ class FileError(ClickException):
         self.filename = filename
 
     def format_message(self) -> str:
-        return _("Could not open file {filename!r}: {message}").format(
-            filename=self.ui_filename, message=self.message
-        )
+        return f"Could not open file {self.ui_filename!r}: {self.message}"
 
 
 class Abort(RuntimeError):
