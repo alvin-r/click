@@ -3,7 +3,6 @@ from __future__ import annotations
 import collections.abc as cabc
 import typing as t
 from gettext import gettext as _
-from gettext import ngettext
 
 from ._compat import get_text_stderr
 from .globals import resolve_color_default
@@ -229,11 +228,11 @@ class NoSuchOption(UsageError):
             return self.message
 
         possibility_str = ", ".join(sorted(self.possibilities))
-        suggest = ngettext(
-            "Did you mean {possibility}?",
-            "(Possible options: {possibilities})",
-            len(self.possibilities),
-        ).format(possibility=possibility_str, possibilities=possibility_str)
+        if len(self.possibilities) == 1:
+            suggest = f"Did you mean {possibility_str}?"
+        else:
+            suggest = f"(Possible options: {possibility_str})"
+            
         return f"{self.message} {suggest}"
 
 
