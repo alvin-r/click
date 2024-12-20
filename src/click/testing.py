@@ -45,7 +45,10 @@ class EchoingStdin:
         return self._echo(self._input.read1(n))  # type: ignore
 
     def readline(self, n: int = -1) -> bytes:
-        return self._echo(self._input.readline(n))
+        line = self._input.readline(n)
+        if not self._paused:
+            self._output.write(line)
+        return line
 
     def readlines(self) -> list[bytes]:
         return [self._echo(x) for x in self._input.readlines()]
@@ -55,6 +58,11 @@ class EchoingStdin:
 
     def __repr__(self) -> str:
         return repr(self._input)
+
+    def _echo(self, rv: bytes) -> bytes:
+        if not self._paused:
+            self._output.write(rv)
+        return rv
 
 
 @contextlib.contextmanager
