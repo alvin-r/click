@@ -48,13 +48,17 @@ class EchoingStdin:
         return self._echo(self._input.readline(n))
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        return list(self._echo(x) for x in self._input)
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
 
     def __repr__(self) -> str:
         return repr(self._input)
+
+    def _echo(self, line: bytes) -> bytes:
+        # Assuming the _echo method is doing some operations on each line.
+        return line
 
 
 @contextlib.contextmanager
