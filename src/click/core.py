@@ -2164,18 +2164,23 @@ class Parameter:
 
         .. versionadded:: 8.0
         """
-        return {
+        info_dict = {
             "name": self.name,
             "param_type_name": self.param_type_name,
             "opts": self.opts,
             "secondary_opts": self.secondary_opts,
-            "type": self.type.to_info_dict(),
             "required": self.required,
             "nargs": self.nargs,
             "multiple": self.multiple,
             "default": self.default,
             "envvar": self.envvar,
         }
+        
+        # Directly assign the type information dictionary
+        type_info = self.type.to_info_dict()
+        info_dict["type"] = type_info
+
+        return info_dict
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self.name}>"
