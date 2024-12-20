@@ -2279,47 +2279,15 @@ class Parameter:
         if value is None:
             return () if self.multiple or self.nargs == -1 else None
 
-        def check_iter(value: t.Any) -> cabc.Iterator[t.Any]:
-            try:
-                return _check_iter(value)
-            except TypeError:
-                # This should only happen when passing in args manually,
-                # the parser should construct an iterable when parsing
-                # the command line.
-                raise BadParameter(
-                    _("Value must be an iterable."), ctx=ctx, param=self
-                ) from None
-
         if self.nargs == 1 or self.type.is_composite:
+            if self.multiple:
+                return tuple(self.type(x, param=self, ctx=ctx) for x in self._check_iter(value, ctx))
+            return self.type(value, param=self, ctx=ctx)
 
-            def convert(value: t.Any) -> t.Any:
-                return self.type(value, param=self, ctx=ctx)
-
-        elif self.nargs == -1:
-
-            def convert(value: t.Any) -> t.Any:  # tuple[t.Any, ...]
-                return tuple(self.type(x, self, ctx) for x in check_iter(value))
-
-        else:  # nargs > 1
-
-            def convert(value: t.Any) -> t.Any:  # tuple[t.Any, ...]
-                value = tuple(check_iter(value))
-
-                if len(value) != self.nargs:
-                    raise BadParameter(
-                        ngettext(
-                            "Takes {nargs} values but 1 was given.",
-                            "Takes {nargs} values but {len} were given.",
-                            len(value),
-                        ).format(nargs=self.nargs, len=len(value)),
-                        ctx=ctx,
-                        param=self,
-                    )
-
-                return tuple(self.type(x, self, ctx) for x in value)
+        convert = self._get_convert_function(ctx)
 
         if self.multiple:
-            return tuple(convert(x) for x in check_iter(value))
+            return tuple(convert(x) for x in self._check_iter(value, ctx))
 
         return convert(value)
 
@@ -2447,6 +2415,38 @@ class Parameter:
             return t.cast("list[CompletionItem]", results)
 
         return self.type.shell_complete(ctx, self, incomplete)
+
+    def _check_iter(self, value: t.Any, ctx: Context) -> cabc.Iterator[t.Any]:
+        try:
+            return iter(value)
+        except TypeError:
+            raise BadParameter(
+                _("Value must be an iterable."), ctx=ctx, param=self
+            ) from None
+
+    def _get_convert_function(self, ctx: Context) -> t.Callable[[t.Any], t.Any]:
+        if self.nargs == -1:
+            def convert(value: t.Any) -> t.Any:
+                return tuple(self.type(x, self, ctx) for x in self._check_iter(value, ctx))
+            return convert
+
+        def convert(value: t.Any) -> t.Any:
+            value = tuple(self._check_iter(value, ctx))
+
+            if len(value) != self.nargs:
+                raise BadParameter(
+                    ngettext(
+                        "Takes {nargs} values but 1 was given.",
+                        "Takes {nargs} values but {len} were given.",
+                        len(value),
+                    ).format(nargs=self.nargs, len=len(value)),
+                    ctx=ctx,
+                    param=self,
+                )
+
+            return tuple(self.type(x, self, ctx) for x in value)
+        
+        return convert
 
 
 class Option(Parameter):
