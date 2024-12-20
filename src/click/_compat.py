@@ -189,19 +189,19 @@ def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
 
 
 def _find_binary_writer(stream: t.IO[t.Any]) -> t.BinaryIO | None:
-    # We need to figure out if the given stream is already binary.
-    # This can happen because the official docs recommend detaching
-    # the streams to get binary streams.  Some code might do this, so
-    # we need to deal with this case explicitly.
+    # Directly check if the stream supports buffer interface.
+    try:
+        # Attempt to get buffer directly and skip unnecessary checks if successful.
+        buf = stream.buffer  # TypeError if 'buffer' is not an attribute.
+    except AttributeError:
+        return None
+
+    # Check if the current stream or its buffer can be used as a binary writer.
+    if _is_binary_writer(buf, True):
+        return t.cast(t.BinaryIO, buf)
+    
     if _is_binary_writer(stream, False):
         return t.cast(t.BinaryIO, stream)
-
-    buf = getattr(stream, "buffer", None)
-
-    # Same situation here; this time we assume that the buffer is
-    # actually binary in case it's closed.
-    if buf is not None and _is_binary_writer(buf, True):
-        return t.cast(t.BinaryIO, buf)
 
     return None
 
