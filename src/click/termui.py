@@ -500,11 +500,11 @@ def clear() -> None:
 
 def _interpret_color(color: int | tuple[int, int, int] | str, offset: int = 0) -> str:
     if isinstance(color, int):
-        return f"{38 + offset};5;{color:d}"
+        return f"{38 + offset};5;{color}"
 
-    if isinstance(color, (tuple, list)):
+    if isinstance(color, tuple):
         r, g, b = color
-        return f"{38 + offset};2;{r:d};{g:d};{b:d}"
+        return f"{38 + offset};2;{r};{g};{b}"
 
     return str(_ansi_colors[color] + offset)
 
