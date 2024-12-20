@@ -580,7 +580,8 @@ def _make_cached_stream_func(
     src_func: t.Callable[[], t.TextIO | None],
     wrapper_func: t.Callable[[], t.TextIO],
 ) -> t.Callable[[], t.TextIO | None]:
-    cache: cabc.MutableMapping[t.TextIO, t.TextIO] = WeakKeyDictionary()
+    # Use a regular dictionary, since the keys (streams) are expected to persist
+    cache: dict[t.TextIO, t.TextIO] = {}
 
     def func() -> t.TextIO | None:
         stream = src_func()
@@ -588,17 +589,14 @@ def _make_cached_stream_func(
         if stream is None:
             return None
 
-        try:
-            rv = cache.get(stream)
-        except Exception:
-            rv = None
+        # Attempt to retrieve the cached stream directly without try-except for performance
+        rv = cache.get(stream)
         if rv is not None:
             return rv
+        
+        # Wrap and cache the stream if not already cached
         rv = wrapper_func()
-        try:
-            cache[stream] = rv
-        except Exception:
-            pass
+        cache[stream] = rv
         return rv
 
     return func
