@@ -602,40 +602,35 @@ def style(
     if not isinstance(text, str):
         text = str(text)
 
-    bits = []
+    styles = []
+    append_style = styles.append
 
     if fg:
-        try:
-            bits.append(f"\033[{_interpret_color(fg)}m")
-        except KeyError:
-            raise TypeError(f"Unknown color {fg!r}") from None
-
+        append_style(f"\033[{_interpret_color(fg)}m")
     if bg:
-        try:
-            bits.append(f"\033[{_interpret_color(bg, 10)}m")
-        except KeyError:
-            raise TypeError(f"Unknown color {bg!r}") from None
-
+        append_style(f"\033[{_interpret_color(bg, 10)}m")
     if bold is not None:
-        bits.append(f"\033[{1 if bold else 22}m")
+        append_style(f"\033[{1 if bold else 22}m")
     if dim is not None:
-        bits.append(f"\033[{2 if dim else 22}m")
+        append_style(f"\033[{2 if dim else 22}m")
     if underline is not None:
-        bits.append(f"\033[{4 if underline else 24}m")
+        append_style(f"\033[{4 if underline else 24}m")
     if overline is not None:
-        bits.append(f"\033[{53 if overline else 55}m")
+        append_style(f"\033[{53 if overline else 55}m")
     if italic is not None:
-        bits.append(f"\033[{3 if italic else 23}m")
+        append_style(f"\033[{3 if italic else 23}m")
     if blink is not None:
-        bits.append(f"\033[{5 if blink else 25}m")
+        append_style(f"\033[{5 if blink else 25}m")
     if reverse is not None:
-        bits.append(f"\033[{7 if reverse else 27}m")
+        append_style(f"\033[{7 if reverse else 27}m")
     if strikethrough is not None:
-        bits.append(f"\033[{9 if strikethrough else 29}m")
-    bits.append(text)
+        append_style(f"\033[{9 if strikethrough else 29}m")
+
+    styles.append(text)
     if reset:
-        bits.append(_ansi_reset_all)
-    return "".join(bits)
+        styles.append(_ansi_reset_all)
+
+    return "".join(styles)
 
 
 def unstyle(text: str) -> str:
@@ -865,3 +860,17 @@ def pause(info: str | None = None, err: bool = False) -> None:
     finally:
         if info:
             echo(err=err)
+
+
+def _interpret_color(color: int | tuple[int, int, int] | str, base: int = 0) -> str:
+    if isinstance(color, int):
+        if 0 <= color <= 255:
+            return f"{base + 38 if base else 38};5;{color}"
+        raise ValueError("Color index must be between 0 and 255.")
+    elif isinstance(color, (tuple, list)) and len(color) == 3:
+        r, g, b = [int(c) for c in color]
+        return f"{base + 38 if base else 38};2;{r};{g};{b}"
+    elif isinstance(color, str):
+        if color in _ansi_colors:
+            return str(_ansi_colors[color])
+    raise ValueError("Invalid color specification.")
