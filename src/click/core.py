@@ -3058,17 +3058,25 @@ class Argument(Parameter):
         return self.name.upper()  # type: ignore
 
     def make_metavar(self) -> str:
+        # Use the metavar if explicitly provided.
         if self.metavar is not None:
             return self.metavar
-        var = self.type.get_metavar(self)
-        if not var:
-            var = self.name.upper()  # type: ignore
+
+        # Determine the base metavar from the type or default to the name.
+        var = self.type.get_metavar(self) or self.name.upper()  # type: ignore
+        
+        # Add deprecated marker if applicable.
         if self.deprecated:
             var += "!"
+
+        # Wrap in brackets if not required.
         if not self.required:
             var = f"[{var}]"
+
+        # Add ellipsis for multiple arguments.
         if self.nargs != 1:
-            var += "..."
+            return f"{var}..."
+
         return var
 
     def _parse_decls(
