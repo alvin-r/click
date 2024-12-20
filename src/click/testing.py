@@ -211,8 +211,8 @@ class Result:
         )
 
     def __repr__(self) -> str:
-        exc_str = repr(self.exception) if self.exception else "okay"
-        return f"<{type(self).__name__} {exc_str}>"
+        exc_str = f"{self.exception!r}" if self.exception else "okay"
+        return f"<Result {exc_str}>"
 
 
 class CliRunner:
