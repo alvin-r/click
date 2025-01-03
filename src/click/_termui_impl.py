@@ -162,19 +162,18 @@ class ProgressBar(t.Generic[V]):
         return 0.0
 
     def format_eta(self) -> str:
-        if self.eta_known:
-            t = int(self.eta)
-            seconds = t % 60
-            t //= 60
-            minutes = t % 60
-            t //= 60
-            hours = t % 24
-            t //= 24
-            if t > 0:
-                return f"{t}d {hours:02}:{minutes:02}:{seconds:02}"
-            else:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-        return ""
+        if not self.eta_known:
+            return ""
+            
+        total_seconds = int(self.eta)
+        seconds = total_seconds % 60
+        minutes = (total_seconds // 60) % 60
+        hours = (total_seconds // 3600) % 24
+        days = total_seconds // 86400
+        
+        if days > 0:
+            return f"{days}d {hours:02}:{minutes:02}:{seconds:02}"
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
 
     def format_pos(self) -> str:
         pos = str(self.pos)
@@ -362,6 +361,12 @@ class ProgressBar(t.Generic[V]):
 
             self.finish()
             self.render_progress()
+
+    @property
+    def eta(self) -> float:
+        if self.length and not self.finished:
+            return self.time_per_iteration * (self.length - self.pos)
+        return 0.0
 
 
 def pager(generator: cabc.Iterable[str], color: bool | None = None) -> None:
