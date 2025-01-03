@@ -285,14 +285,40 @@ class ShellComplete:
     def complete(self) -> str:
         """Produce the completion data to send back to the shell.
 
-        By default this calls :meth:`get_completion_args`, gets the
-        completions, then calls :meth:`format_completion` for each
-        completion.
+        This method efficiently processes the completion by minimizing
+        list comprehension overhead and using efficient joins.
         """
         args, incomplete = self.get_completion_args()
-        completions = self.get_completions(args, incomplete)
-        out = [self.format_completion(item) for item in completions]
-        return "\n".join(out)
+        # Optimize completion processing using generator expressions
+        return "\n".join(self.format_completion(item) for item in self.get_completions(args, incomplete))
+
+    def get_completion_args(self) -> tuple[list[str], str]:
+        """Use the env vars defined by the shell script to return a
+        tuple of ``args, incomplete``. This must be implemented by
+        subclasses.
+        """
+        raise NotImplementedError
+
+    def get_completions(self, args: list[str], incomplete: str) -> list[CompletionItem]:
+        """Determine the context and last complete command or parameter
+        from the complete args. Call that object's ``shell_complete``
+        method to get the completions for the incomplete value.
+
+        :param args: List of complete args before the incomplete value.
+        :param incomplete: Value being completed. May be empty.
+        """
+        # Direct assignment to avoid additional operations
+        ctx = _resolve_context(self.cli, self.ctx_args, self.prog_name, args)
+        obj, incomplete = _resolve_incomplete(ctx, args, incomplete)
+        return obj.shell_complete(ctx, incomplete)
+
+    def format_completion(self, item: CompletionItem) -> str:
+        """Format a completion item into the form recognized by the
+        shell script. This must be implemented by subclasses.
+
+        :param item: Completion item to format.
+        """
+        raise NotImplementedError
 
 
 class BashComplete(ShellComplete):
