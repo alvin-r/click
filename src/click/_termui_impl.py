@@ -26,7 +26,7 @@ from ._compat import strip_ansi
 from ._compat import term_len
 from ._compat import WIN
 from .exceptions import ClickException
-from .utils import echo
+from .utils import echo as original_echo, echo
 
 V = t.TypeVar("V")
 
@@ -232,49 +232,38 @@ class ProgressBar(t.Generic[V]):
         ).rstrip()
 
     def render_progress(self) -> None:
-        import shutil
-
-        if self.hidden:
-            return
-
-        if not self._is_atty:
-            # Only output the label once if the output is not a TTY.
+        if self.hidden or not self._is_atty:
+            # If hidden or not a TTY, show only the label once if needed.
             if self._last_line != self.label:
                 self._last_line = self.label
-                echo(self.label, file=self.file, color=self.color)
+                original_echo(self.label, file=self.file, color=self.color)
             return
 
-        buf = []
-        # Update width in case the terminal has been resized
+        import shutil
+        old_width, buf = self.width, []
+
+        # Dynamically calculate width based on terminal size
         if self.autowidth:
-            old_width = self.width
-            self.width = 0
-            clutter_length = term_len(self.format_progress_line())
-            new_width = max(0, shutil.get_terminal_size().columns - clutter_length)
-            if new_width < old_width and self.max_width is not None:
+            self.width = max(0, shutil.get_terminal_size().columns - term_len(self.format_progress_line()))
+            if self.width < old_width and self.max_width is not None:
                 buf.append(BEFORE_BAR)
                 buf.append(" " * self.max_width)
-                self.max_width = new_width
-            self.width = new_width
+            self.max_width = self.width
 
-        clear_width = self.width
-        if self.max_width is not None:
-            clear_width = self.max_width
-
+        clear_width = self.max_width or self.width
         buf.append(BEFORE_BAR)
         line = self.format_progress_line()
         line_len = term_len(line)
-        if self.max_width is None or self.max_width < line_len:
-            self.max_width = line_len
+        self.max_width = max(self.max_width or 0, line_len)
 
-        buf.append(line)
-        buf.append(" " * (clear_width - line_len))
-        line = "".join(buf)
-        # Render the line only if it changed.
+        # Prepare the progress bar string
+        buf.extend([line, " " * (clear_width - line_len)])
+        formatted_line = "".join(buf)
 
-        if line != self._last_line:
-            self._last_line = line
-            echo(line, file=self.file, color=self.color, nl=False)
+        # Output the progress bar only if changed
+        if formatted_line != self._last_line:
+            self._last_line = formatted_line
+            original_echo(formatted_line, file=self.file, color=self.color, nl=False)
             self.file.flush()
 
     def make_step(self, n_steps: int) -> None:
@@ -362,6 +351,33 @@ class ProgressBar(t.Generic[V]):
 
             self.finish()
             self.render_progress()
+
+    def format_progress_line(self) -> str:
+        show_percent = self.show_percent
+
+        info_bits = []
+        if self.length is not None and show_percent is None:
+            show_percent = not self.show_pos
+
+        if self.show_pos:
+            info_bits.append(self.format_pos())
+        if show_percent:
+            info_bits.append(self.format_pct())
+        if self.show_eta and self.eta_known and not self.finished:
+            info_bits.append(self.format_eta())
+        if self.item_show_func is not None:
+            item_info = self.item_show_func(self.current_item)
+            if item_info:
+                info_bits.append(item_info)
+
+        return (
+            self.bar_template
+            % {
+                "label": self.label,
+                "bar": self.format_bar(),
+                "info": self.info_sep.join(info_bits),
+            }
+        ).rstrip()
 
 
 def pager(generator: cabc.Iterable[str], color: bool | None = None) -> None:
