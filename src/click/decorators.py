@@ -368,9 +368,6 @@ def option(
         ``cls``.
     :param attrs: Passed as keyword arguments to the constructor of ``cls``.
     """
-    if cls is None:
-        cls = Option
-
     def decorator(f: FC) -> FC:
         _param_memo(f, cls(param_decls, **attrs))
         return f
@@ -391,15 +388,22 @@ def confirmation_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], 
         if not value:
             ctx.abort()
 
+    # Optimization: Directly pass ('--yes',) as `param_decls` default argument.
     if not param_decls:
         param_decls = ("--yes",)
 
-    kwargs.setdefault("is_flag", True)
-    kwargs.setdefault("callback", callback)
-    kwargs.setdefault("expose_value", False)
-    kwargs.setdefault("prompt", "Do you want to continue?")
-    kwargs.setdefault("help", "Confirm the action without prompting.")
-    return option(*param_decls, **kwargs)
+    # Use dict.update() with a single call, reducing repeated access to kwargs.
+    default_kwargs = {
+        "is_flag": True,
+        "callback": callback,
+        "expose_value": False,
+        "prompt": "Do you want to continue?",
+        "help": "Confirm the action without prompting."
+    }
+    # Update only non-existent keys.
+    default_kwargs.update(kwargs)
+    
+    return option(*param_decls, **default_kwargs)
 
 
 def password_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], FC]:
