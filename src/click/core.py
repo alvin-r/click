@@ -72,21 +72,14 @@ def _complete_visible_commands(
 def _check_nested_chain(
     base_command: Group, cmd_name: str, cmd: Command, register: bool = False
 ) -> None:
-    if not base_command.chain or not isinstance(cmd, Group):
-        return
-
-    if register:
+    if base_command.chain and isinstance(cmd, Group):
         message = (
-            f"It is not possible to add the group {cmd_name!r} to another"
-            f" group {base_command.name!r} that is in chain mode."
+            f"{'It is not possible to add' if register else 'Found'} "
+            f"the group {cmd_name!r} {'to' if register else 'as subcommand to'} "
+            f"another group {base_command.name!r} that is in chain mode. "
+            f"{'This is not supported.' if not register else ''}"
         )
-    else:
-        message = (
-            f"Found the group {cmd_name!r} as subcommand to another group "
-            f" {base_command.name!r} that is in chain mode. This is not supported."
-        )
-
-    raise RuntimeError(message)
+        raise RuntimeError(message)
 
 
 def batch(iterable: cabc.Iterable[V], batch_size: int) -> list[tuple[V, ...]]:
@@ -1720,10 +1713,21 @@ class Group(Command):
         return decorator
 
     def get_command(self, ctx: Context, cmd_name: str) -> Command | None:
-        """Given a context and a command name, this returns a :class:`Command`
-        object if it exists or returns ``None``.
-        """
-        return self.commands.get(cmd_name)
+        """Retrieve a command from the collection of sources."""
+        # First check this group
+        rv = self.commands.get(cmd_name)
+        if rv is not None:
+            return rv
+
+        # Then check each source
+        for source in self.sources:
+            rv = source.commands.get(cmd_name)
+            if rv is not None:
+                if self.chain:
+                    _check_nested_chain(self, cmd_name, rv)
+                return rv
+
+        return None
 
     def list_commands(self, ctx: Context) -> list[str]:
         """Returns a list of subcommand names in the order they should appear."""
@@ -1933,18 +1937,18 @@ class CommandCollection(Group):
         self.sources.append(group)
 
     def get_command(self, ctx: Context, cmd_name: str) -> Command | None:
-        rv = super().get_command(ctx, cmd_name)
-
+        """Retrieve a command from the collection of sources."""
+        # First check this group
+        rv = self.commands.get(cmd_name)
         if rv is not None:
             return rv
 
+        # Then check each source
         for source in self.sources:
-            rv = source.get_command(ctx, cmd_name)
-
+            rv = source.commands.get(cmd_name)
             if rv is not None:
                 if self.chain:
                     _check_nested_chain(self, cmd_name, rv)
-
                 return rv
 
         return None
