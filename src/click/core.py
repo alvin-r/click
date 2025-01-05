@@ -557,9 +557,9 @@ class Context:
         .. versionchanged:: 8.0
             Added the :attr:`formatter_class` attribute.
         """
-        return self.formatter_class(
-            width=self.terminal_width, max_width=self.max_content_width
-        )
+        terminal_width = self.terminal_width or 80
+        max_content_width = self.max_content_width or 80
+        return self.formatter_class(width=terminal_width, max_width=max_content_width)
 
     def with_resource(self, context_manager: AbstractContextManager[V]) -> V:
         """Register a resource as if it were used in a ``with``
@@ -992,7 +992,9 @@ class Command:
         This is a low-level method called by :meth:`get_usage`.
         """
         pieces = self.collect_usage_pieces(ctx)
-        formatter.write_usage(ctx.command_path, " ".join(pieces))
+        if pieces:
+            formatted_usage = " ".join(pieces)
+            formatter.write_usage(ctx.command_path, formatted_usage)
 
     def collect_usage_pieces(self, ctx: Context) -> list[str]:
         """Returns all the pieces that go into the usage line and returns
