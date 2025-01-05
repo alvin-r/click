@@ -325,26 +325,18 @@ def _param_memo(f: t.Callable[..., t.Any], param: Parameter) -> None:
 def argument(
     *param_decls: str, cls: type[Argument] | None = None, **attrs: t.Any
 ) -> t.Callable[[FC], FC]:
-    """Attaches an argument to the command.  All positional arguments are
-    passed as parameter declarations to :class:`Argument`; all keyword
-    arguments are forwarded unchanged (except ``cls``).
-    This is equivalent to creating an :class:`Argument` instance manually
-    and attaching it to the :attr:`Command.params` list.
+    """Attaches an argument to the command.
+    
+    All positional arguments are passed as parameter declarations 
+    to :class:`Argument`; all keyword arguments are forwarded unchanged (except ``cls``).
 
-    For the default argument class, refer to :class:`Argument` and
-    :class:`Parameter` for descriptions of parameters.
-
-    :param cls: the argument class to instantiate.  This defaults to
-                :class:`Argument`.
-    :param param_decls: Passed as positional arguments to the constructor of
-        ``cls``.
+    :param cls: the argument class to instantiate. This defaults to :class:`Argument`.
+    :param param_decls: Passed as positional arguments to the constructor of ``cls``.
     :param attrs: Passed as keyword arguments to the constructor of ``cls``.
     """
-    if cls is None:
-        cls = Argument
 
     def decorator(f: FC) -> FC:
-        _param_memo(f, cls(param_decls, **attrs))
+        _param_memo(f, (cls or Argument)(param_decls, **attrs))
         return f
 
     return decorator
