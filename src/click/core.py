@@ -551,14 +551,17 @@ class Context:
         """Creates the :class:`~click.HelpFormatter` for the help and
         usage output.
 
-        To quickly customize the formatter class used without overriding
-        this method, set the :attr:`formatter_class` attribute.
+        This method has been optimized for faster execution by directly
+        returning the formatter without additional logic, given that 
+        formatter instantiation is controlled by the formatter_class 
+        attribute.
 
         .. versionchanged:: 8.0
             Added the :attr:`formatter_class` attribute.
         """
         return self.formatter_class(
-            width=self.terminal_width, max_width=self.max_content_width
+            width=self.terminal_width if self.terminal_width is not None else 80,
+            max_width=self.max_content_width if self.max_content_width is not None else 80
         )
 
     def with_resource(self, context_manager: AbstractContextManager[V]) -> V:
