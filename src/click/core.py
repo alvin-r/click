@@ -1007,11 +1007,17 @@ class Command:
 
     def get_help_option_names(self, ctx: Context) -> list[str]:
         """Returns the names for the help option."""
-        all_names = set(ctx.help_option_names)
+        if not self.params:
+            return ctx.help_option_names  # Early return if no parameters to process
+
+        # Start with a direct copy of help_option_names and remove used names
+        remaining_help_option_names = set(ctx.help_option_names)
+
+        # Iteratively update the set by removing param options directly
         for param in self.params:
-            all_names.difference_update(param.opts)
-            all_names.difference_update(param.secondary_opts)
-        return list(all_names)
+            remaining_help_option_names.difference_update(param.opts, param.secondary_opts)
+
+        return list(remaining_help_option_names)
 
     def get_help_option(self, ctx: Context) -> Option | None:
         """Returns the help option object."""
