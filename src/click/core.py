@@ -1726,8 +1726,16 @@ class Group(Command):
         return self.commands.get(cmd_name)
 
     def list_commands(self, ctx: Context) -> list[str]:
-        """Returns a list of subcommand names in the order they should appear."""
-        return sorted(self.commands)
+        # Initialize with existing commands from the Group.
+        rv = set(self.commands.keys())
+
+        # Update the set rv with commands from all sources efficiently.
+        for source in self.sources:
+            # Directly extend the set with each source's commands
+            rv.update(source.commands.keys())
+
+        # Return a sorted list of all collected command names
+        return sorted(rv)
 
     def collect_usage_pieces(self, ctx: Context) -> list[str]:
         rv = super().collect_usage_pieces(ctx)
@@ -1950,11 +1958,15 @@ class CommandCollection(Group):
         return None
 
     def list_commands(self, ctx: Context) -> list[str]:
-        rv: set[str] = set(super().list_commands(ctx))
+        # Initialize with existing commands from the Group.
+        rv = set(self.commands.keys())
 
+        # Update the set rv with commands from all sources efficiently.
         for source in self.sources:
-            rv.update(source.list_commands(ctx))
+            # Directly extend the set with each source's commands
+            rv.update(source.commands.keys())
 
+        # Return a sorted list of all collected command names
         return sorted(rv)
 
 
