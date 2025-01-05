@@ -1007,20 +1007,30 @@ class Command:
 
     def get_help_option_names(self, ctx: Context) -> list[str]:
         """Returns the names for the help option."""
-        all_names = set(ctx.help_option_names)
+        help_option_names = set(ctx.help_option_names)
+
+        # Since `param.opts` and `param.secondary_opts` will generally
+        # use sets for options, using `difference_update` is efficient.
         for param in self.params:
-            all_names.difference_update(param.opts)
-            all_names.difference_update(param.secondary_opts)
-        return list(all_names)
+            if param.opts or param.secondary_opts:
+                help_option_names -= set(param.opts).union(param.secondary_opts)
+
+        return list(help_option_names)
 
     def get_help_option(self, ctx: Context) -> Option | None:
         """Returns the help option object."""
+        # Pre-check conditions to short-circuit return
+        if not self.add_help_option or not ctx.help_option_names:
+            return None
+
         help_options = self.get_help_option_names(ctx)
 
-        if not help_options or not self.add_help_option:
+        # If no help options available, return early
+        if not help_options:
             return None
 
         def show_help(ctx: Context, param: Parameter, value: str) -> None:
+            # Simplified conditional check
             if value and not ctx.resilient_parsing:
                 echo(ctx.get_help(), color=ctx.color)
                 ctx.exit()
