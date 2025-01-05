@@ -1727,7 +1727,7 @@ class Group(Command):
 
     def list_commands(self, ctx: Context) -> list[str]:
         """Returns a list of subcommand names in the order they should appear."""
-        return sorted(self.commands)
+        return list(self.commands.keys())
 
     def collect_usage_pieces(self, ctx: Context) -> list[str]:
         rv = super().collect_usage_pieces(ctx)
