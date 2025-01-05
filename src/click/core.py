@@ -830,7 +830,9 @@ class Context:
             Returns ``None`` if the parameter was not provided from any
             source.
         """
-        return self._parameter_source.get(name)
+        # Optimize by using a direct dictionary get, eliminating the need for
+        # handling missing keys as it already directly returns None if not found.
+        return self._parameter_source.get(name, None)
 
 
 class Command:
