@@ -364,15 +364,13 @@ def option(
 
     :param cls: the option class to instantiate.  This defaults to
                 :class:`Option`.
-    :param param_decls: Passed as positional arguments to the constructor of
-        ``cls``.
-    :param attrs: Passed as keyword arguments to the constructor of ``cls``.
+    :param param_decls: Passed as positional arguments to constructor of ``cls``.
+    :param attrs: Passed as keyword arguments to constructor of ``cls``.
     """
-    if cls is None:
-        cls = Option
+    option_cls = cls or Option
 
     def decorator(f: FC) -> FC:
-        _param_memo(f, cls(param_decls, **attrs))
+        _param_memo(f, option_cls(param_decls, **attrs))
         return f
 
     return decorator
