@@ -88,7 +88,8 @@ class CompletionItem:
         self._info = kwargs
 
     def __getattr__(self, name: str) -> t.Any:
-        return self._info.get(name)
+        # Use `get` method with default `None` for direct retrieval
+        return self._info.get(name, None)
 
 
 # Only Bash >= 4.4 has the nosort option.
