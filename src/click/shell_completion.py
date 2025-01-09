@@ -431,7 +431,7 @@ def get_completion_class(shell: str) -> type[ShellComplete] | None:
 
     :param shell: Name the class is registered under.
     """
-    return _available_shells.get(shell)
+    return _available_shells.get(shell, None)
 
 
 def split_arg_string(string: str) -> list[str]:
