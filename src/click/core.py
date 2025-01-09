@@ -120,13 +120,13 @@ def iter_params_for_processing(
     for processing and an iterable of parameters that exist, this returns
     a list in the correct order as they should be processed.
     """
+    
+    # Preprocess the indices of the invocation_order into a dictionary for fast lookup
+    invocation_index = {parameter: index for index, parameter in enumerate(invocation_order)}
 
     def sort_key(item: Parameter) -> tuple[bool, float]:
-        try:
-            idx: float = invocation_order.index(item)
-        except ValueError:
-            idx = float("inf")
-
+        # Use the dictionary to get the index or assign float("inf") if not found
+        idx = invocation_index.get(item, float("inf"))
         return not item.is_eager, idx
 
     return sorted(declaration_order, key=sort_key)
