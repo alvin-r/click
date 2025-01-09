@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import typing as t
+from functools import lru_cache
 from types import TracebackType
 from weakref import WeakKeyDictionary
 
@@ -37,6 +38,7 @@ def _make_text_stream(
     )
 
 
+@lru_cache(maxsize=None)
 def is_ascii_encoding(encoding: str) -> bool:
     """Checks if a given encoding is ascii."""
     try:
