@@ -241,11 +241,14 @@ class ShellComplete:
         By default this provides ``complete_func``, ``complete_var``,
         and ``prog_name``.
         """
-        return {
-            "complete_func": self.func_name,
-            "complete_var": self.complete_var,
-            "prog_name": self.prog_name,
-        }
+        # Instead of creating a new dictionary every time, store and return the same dictionary
+        if not hasattr(self, '_source_vars_cache'):
+            self._source_vars_cache = {
+                "complete_func": self.func_name,
+                "complete_var": self.complete_var,
+                "prog_name": self.prog_name,
+            }
+        return self._source_vars_cache
 
     def source(self) -> str:
         """Produce the shell script that defines the completion
@@ -253,7 +256,10 @@ class ShellComplete:
         :attr:`source_template` with the dict returned by
         :meth:`source_vars`.
         """
-        return self.source_template % self.source_vars()
+        # Cache the formatted source script to avoid re-processing
+        if not hasattr(self, '_formatted_source_cache'):
+            self._formatted_source_cache = self.source_template % self.source_vars()
+        return self._formatted_source_cache
 
     def get_completion_args(self) -> tuple[list[str], str]:
         """Use the env vars defined by the shell script to return a
