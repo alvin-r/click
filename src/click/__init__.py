@@ -70,55 +70,43 @@ from .utils import get_app_dir as get_app_dir
 from .utils import get_binary_stream as get_binary_stream
 from .utils import get_text_stream as get_text_stream
 from .utils import open_file as open_file
+import importlib.metadata
+import warnings
 
 
 def __getattr__(name: str) -> object:
-    import warnings
-
     if name == "BaseCommand":
         from .core import _BaseCommand
 
-        warnings.warn(
-            "'BaseCommand' is deprecated and will be removed in Click 9.0. Use"
-            " 'Command' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        warn_deprecated('BaseCommand', 'Command', '9.0')
         return _BaseCommand
 
     if name == "MultiCommand":
         from .core import _MultiCommand
 
-        warnings.warn(
-            "'MultiCommand' is deprecated and will be removed in Click 9.0. Use"
-            " 'Group' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        warn_deprecated('MultiCommand', 'Group', '9.0')
         return _MultiCommand
 
     if name == "OptionParser":
         from .parser import _OptionParser
 
-        warnings.warn(
-            "'OptionParser' is deprecated and will be removed in Click 9.0. The"
-            " old parser is available in 'optparse'.",
-            DeprecationWarning,
-            stacklevel=2,
+        warn_deprecated(
+            'OptionParser', 'optparse', '9.0',
+            " The old parser is available in 'optparse'."
         )
         return _OptionParser
 
     if name == "__version__":
-        import importlib.metadata
-        import warnings
-
-        warnings.warn(
-            "The '__version__' attribute is deprecated and will be removed in"
-            " Click 9.1. Use feature detection or"
-            " 'importlib.metadata.version(\"click\")' instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+        warn_deprecated("__version__", "importlib.metadata.version(\"click\")", "9.1",
+                        " Use feature detection or 'importlib.metadata.version(\"click\")' instead.")
         return importlib.metadata.version("click")
 
     raise AttributeError(name)
+
+
+def warn_deprecated(name: str, alt_name: str, version: str, extra_message: str = ""):
+    warnings.warn(
+        f"'{name}' is deprecated and will be removed in Click {version}. Use '{alt_name}' instead.{extra_message}",
+        DeprecationWarning,
+        stacklevel=3,
+    )
