@@ -966,23 +966,10 @@ class Command:
         help_option = self.get_help_option(ctx)
 
         if help_option is not None:
-            params = [*params, help_option]
+            params.append(help_option)
 
-        if __debug__:
-            import warnings
-
-            opts = [opt for param in params for opt in param.opts]
-            opts_counter = Counter(opts)
-            duplicate_opts = (opt for opt, count in opts_counter.items() if count > 1)
-
-            for duplicate_opt in duplicate_opts:
-                warnings.warn(
-                    (
-                        f"The parameter {duplicate_opt} is used more than once. "
-                        "Remove its duplicate as parameters should be unique."
-                    ),
-                    stacklevel=3,
-                )
+        if __debug__ and params:
+            self._check_for_duplicate_parameters(params)
 
         return params
 
@@ -1427,6 +1414,44 @@ class Command:
     def __call__(self, *args: t.Any, **kwargs: t.Any) -> t.Any:
         """Alias for :meth:`main`."""
         return self.main(*args, **kwargs)
+    
+    def _check_for_duplicate_parameters(self, params):
+        # Flatten options from all parameters for counting
+        opts = (opt for param in params for opt in param.opts)
+        duplicates = {opt for opt, count in Counter(opts).items() if count > 1}
+
+        if duplicates:
+            self._warn_for_duplicates(duplicates)
+
+    def _warn_for_duplicates(self, duplicates):
+        import warnings
+        for duplicate_opt in duplicates:
+            warnings.warn(
+                (
+                    f"The parameter {duplicate_opt} is used more than once. "
+                    "Remove its duplicate since parameters should be unique."
+                ),
+                stacklevel=3,
+            )
+    
+    def _check_for_duplicate_parameters(self, params):
+        # Flatten options from all parameters for counting
+        opts = (opt for param in params for opt in param.opts)
+        duplicates = {opt for opt, count in Counter(opts).items() if count > 1}
+
+        if duplicates:
+            self._warn_for_duplicates(duplicates)
+
+    def _warn_for_duplicates(self, duplicates):
+        import warnings
+        for duplicate_opt in duplicates:
+            warnings.warn(
+                (
+                    f"The parameter {duplicate_opt} is used more than once. "
+                    "Remove its duplicate since parameters should be unique."
+                ),
+                stacklevel=3,
+            )
 
 
 class _FakeSubclassCheck(type):
