@@ -1008,9 +1008,17 @@ class Command:
     def get_help_option_names(self, ctx: Context) -> list[str]:
         """Returns the names for the help option."""
         all_names = set(ctx.help_option_names)
+        if not all_names:  # Early exit if there are no help option names
+            return []
+
         for param in self.params:
             all_names.difference_update(param.opts)
             all_names.difference_update(param.secondary_opts)
+
+            # Early exit if all names have been removed
+            if not all_names:
+                return []
+
         return list(all_names)
 
     def get_help_option(self, ctx: Context) -> Option | None:
