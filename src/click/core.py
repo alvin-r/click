@@ -728,7 +728,7 @@ class Context:
 
         :meta private:
         """
-        return type(self)(command, info_name=command.name, parent=self)
+        return self.__class__(command, self)
 
     @t.overload
     def invoke(
