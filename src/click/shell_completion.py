@@ -482,18 +482,17 @@ def _is_incomplete_argument(ctx: Context, param: Parameter) -> bool:
     if not isinstance(param, Argument):
         return False
 
-    assert param.name is not None
-    # Will be None if expose_value is False.
-    value = ctx.params.get(param.name)
-    return (
-        param.nargs == -1
-        or ctx.get_parameter_source(param.name) is not ParameterSource.COMMANDLINE
-        or (
-            param.nargs > 1
-            and isinstance(value, (tuple, list))
-            and len(value) < param.nargs
-        )
-    )
+    # Use local variable to avoid repeated lookups
+    param_name = param.name
+    if param_name is None:
+        return False
+
+    # Use a single ctx.params.get call and assignment to avoid redundancy
+    value = ctx.params.get(param_name)
+    source = ctx.get_parameter_source(param_name)
+
+    return (param.nargs == -1 or source is not ParameterSource.COMMANDLINE or 
+            (param.nargs > 1 and isinstance(value, (tuple, list)) and len(value) < param.nargs))
 
 
 def _start_of_option(ctx: Context, value: str) -> bool:
