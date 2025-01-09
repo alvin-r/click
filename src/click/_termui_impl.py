@@ -162,74 +162,62 @@ class ProgressBar(t.Generic[V]):
         return 0.0
 
     def format_eta(self) -> str:
-        if self.eta_known:
-            t = int(self.eta)
-            seconds = t % 60
-            t //= 60
-            minutes = t % 60
-            t //= 60
-            hours = t % 24
-            t //= 24
-            if t > 0:
-                return f"{t}d {hours:02}:{minutes:02}:{seconds:02}"
-            else:
-                return f"{hours:02}:{minutes:02}:{seconds:02}"
-        return ""
+        if not self.eta_known:
+            return ""
+        
+        t = int(self.eta)
+        seconds = t % 60
+        t //= 60
+        minutes = t % 60
+        t //= 60
+        hours = t % 24
+        t //= 24
+
+        return f"{t}d {hours:02}:{minutes:02}:{seconds:02}" if t > 0 else f"{hours:02}:{minutes:02}:{seconds:02}"
 
     def format_pos(self) -> str:
-        pos = str(self.pos)
-        if self.length is not None:
-            pos += f"/{self.length}"
-        return pos
+        return f"{self.pos}/{self.length}" if self.length is not None else str(self.pos)
 
     def format_pct(self) -> str:
-        return f"{int(self.pct * 100): 4}%"[1:]
+        return f"{int(self.pct * 100):3}%"
 
     def format_bar(self) -> str:
         if self.length is not None:
             bar_length = int(self.pct * self.width)
-            bar = self.fill_char * bar_length
-            bar += self.empty_char * (self.width - bar_length)
-        elif self.finished:
-            bar = self.fill_char * self.width
-        else:
-            chars = list(self.empty_char * (self.width or 1))
-            if self.time_per_iteration != 0:
-                chars[
-                    int(
-                        (math.cos(self.pos * self.time_per_iteration) / 2.0 + 0.5)
-                        * self.width
-                    )
-                ] = self.fill_char
-            bar = "".join(chars)
-        return bar
+            filled = self.fill_char * bar_length
+            empty = self.empty_char * (self.width - bar_length)
+            return filled + empty
+        if self.finished:
+            return self.fill_char * self.width
+
+        chars = list(self.empty_char * (self.width or 1))
+        if self.time_per_iteration != 0:
+            pos = int((math.cos(self.pos * self.time_per_iteration) / 2.0 + 0.5) * self.width)
+            chars[pos] = self.fill_char
+        return "".join(chars)
 
     def format_progress_line(self) -> str:
-        show_percent = self.show_percent
-
+        show_percent = self.show_percent if self.show_percent is not None else not self.show_pos
         info_bits = []
-        if self.length is not None and show_percent is None:
-            show_percent = not self.show_pos
 
         if self.show_pos:
             info_bits.append(self.format_pos())
+
         if show_percent:
             info_bits.append(self.format_pct())
+
         if self.show_eta and self.eta_known and not self.finished:
-            info_bits.append(self.format_eta())
-        if self.item_show_func is not None:
+            eta = self.format_eta()
+            if eta:
+                info_bits.append(eta)
+
+        if self.item_show_func:
             item_info = self.item_show_func(self.current_item)
-            if item_info is not None:
+            if item_info:
                 info_bits.append(item_info)
 
-        return (
-            self.bar_template
-            % {
-                "label": self.label,
-                "bar": self.format_bar(),
-                "info": self.info_sep.join(info_bits),
-            }
-        ).rstrip()
+        bar_info = self.bar_template % {"label": self.label, "bar": self.format_bar(), "info": self.info_sep.join(info_bits)}
+        return bar_info.rstrip()
 
     def render_progress(self) -> None:
         import shutil
@@ -238,7 +226,6 @@ class ProgressBar(t.Generic[V]):
             return
 
         if not self._is_atty:
-            # Only output the label once if the output is not a TTY.
             if self._last_line != self.label:
                 self._last_line = self.label
                 echo(self.label, file=self.file, color=self.color)
@@ -252,14 +239,11 @@ class ProgressBar(t.Generic[V]):
             clutter_length = term_len(self.format_progress_line())
             new_width = max(0, shutil.get_terminal_size().columns - clutter_length)
             if new_width < old_width and self.max_width is not None:
-                buf.append(BEFORE_BAR)
-                buf.append(" " * self.max_width)
+                buf.extend([BEFORE_BAR, " " * self.max_width])
                 self.max_width = new_width
             self.width = new_width
 
-        clear_width = self.width
-        if self.max_width is not None:
-            clear_width = self.max_width
+        clear_width = self.width if self.max_width is None else self.max_width
 
         buf.append(BEFORE_BAR)
         line = self.format_progress_line()
@@ -267,10 +251,8 @@ class ProgressBar(t.Generic[V]):
         if self.max_width is None or self.max_width < line_len:
             self.max_width = line_len
 
-        buf.append(line)
-        buf.append(" " * (clear_width - line_len))
+        buf.extend([line, " " * (clear_width - line_len)])
         line = "".join(buf)
-        # Render the line only if it changed.
 
         if line != self._last_line:
             self._last_line = line
