@@ -171,18 +171,13 @@ def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
 
 
 def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
-    # We need to figure out if the given stream is already binary.
-    # This can happen because the official docs recommend detaching
-    # the streams to get binary streams.  Some code might do this, so
-    # we need to deal with this case explicitly.
-    if _is_binary_reader(stream, False):
+    # Check if the stream itself is binary first, without unnecessary default value handling
+    if _is_binary_reader(stream):
         return t.cast(t.BinaryIO, stream)
 
+    # Directly retrieve and test the buffer for binary status
     buf = getattr(stream, "buffer", None)
-
-    # Same situation here; this time we assume that the buffer is
-    # actually binary in case it's closed.
-    if buf is not None and _is_binary_reader(buf, True):
+    if buf and _is_binary_reader(buf, True):
         return t.cast(t.BinaryIO, buf)
 
     return None
@@ -314,9 +309,10 @@ def _force_correct_text_writer(
 
 
 def get_binary_stdin() -> t.BinaryIO:
+    # Streamlined the retrieval of the binary stdin
     reader = _find_binary_reader(sys.stdin)
-    if reader is None:
-        raise RuntimeError("Was not able to determine binary stream for sys.stdin.")
+    if not reader:
+        raise RuntimeError("Unable to determine binary stream for sys.stdin.")
     return reader
 
 
