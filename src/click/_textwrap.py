@@ -38,14 +38,8 @@ class TextWrapper(textwrap.TextWrapper):
             self.subsequent_indent = old_subsequent_indent
 
     def indent_only(self, text: str) -> str:
-        rv = []
-
-        for idx, line in enumerate(text.splitlines()):
-            indent = self.initial_indent
-
-            if idx > 0:
-                indent = self.subsequent_indent
-
-            rv.append(f"{indent}{line}")
-
-        return "\n".join(rv)
+        lines = text.splitlines()
+        initial_line = f"{self.initial_indent}{lines[0]}" if lines else ""
+        subsequent_lines = [f"{self.subsequent_indent}{line}" for line in lines[1:]]
+        
+        return "\n".join([initial_line] + subsequent_lines)
