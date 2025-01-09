@@ -818,19 +818,11 @@ class Context:
         """Get the source of a parameter. This indicates the location
         from which the value of the parameter was obtained.
 
-        This can be useful for determining when a user specified a value
-        on the command line that is the same as the default value. It
-        will be :attr:`~click.core.ParameterSource.DEFAULT` only if the
-        value was actually taken from the default.
-
         :param name: The name of the parameter.
-        :rtype: ParameterSource
-
-        .. versionchanged:: 8.0
-            Returns ``None`` if the parameter was not provided from any
-            source.
+        :rtype: ParameterSource or None
         """
-        return self._parameter_source.get(name)
+        # Utilizing direct dictionary access. 
+        return self._parameter_source.get(name, None)
 
 
 class Command:
