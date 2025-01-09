@@ -1067,9 +1067,7 @@ class Command:
                 if isinstance(self.deprecated, str)
                 else "(DEPRECATED)"
             )
-            text = _("{text} {deprecated_message}").format(
-                text=text, deprecated_message=deprecated_message
-            )
+            text = f"{text} {deprecated_message}"
 
         return text.strip()
 

@@ -58,49 +58,39 @@ def make_str(value: t.Any) -> str:
 
 def make_default_short_help(help: str, max_length: int = 45) -> str:
     """Returns a condensed version of help string."""
-    # Consider only the first paragraph.
     paragraph_end = help.find("\n\n")
-
     if paragraph_end != -1:
         help = help[:paragraph_end]
 
-    # Collapse newlines, tabs, and spaces.
     words = help.split()
-
     if not words:
         return ""
 
-    # The first paragraph started with a "no rewrap" marker, ignore it.
     if words[0] == "\b":
         words = words[1:]
 
     total_length = 0
-    last_index = len(words) - 1
-
     for i, word in enumerate(words):
-        total_length += len(word) + (i > 0)
+        word_length = len(word)
+        total_length += word_length + (i > 0)
 
-        if total_length > max_length:  # too long, truncate
+        if total_length > max_length:
             break
 
-        if word[-1] == ".":  # sentence end, truncate without "..."
+        if word[-1] == ".":
             return " ".join(words[: i + 1])
 
-        if total_length == max_length and i != last_index:
-            break  # not at sentence end, truncate with "..."
-    else:
-        return " ".join(words)  # no truncation needed
-
-    # Account for the length of the suffix.
-    total_length += len("...")
-
-    # remove words until the length is short enough
-    while i > 0:
-        total_length -= len(words[i]) + (i > 0)
-
-        if total_length <= max_length:
+        if total_length == max_length:
+            if i == len(words) - 1 or words[i+1][0] == ".":
+                return " ".join(words[: i + 1])
             break
+    else:
+        return " ".join(words)
 
+    while i > 0:
+        if total_length - len(words[i]) - (i > 0) + len("...") <= max_length:
+            break
+        total_length -= len(words[i]) + (i > 0)
         i -= 1
 
     return " ".join(words[:i]) + "..."
@@ -265,60 +255,42 @@ def echo(
         Support colors on Windows if colorama is installed.
     """
     if file is None:
-        if err:
-            file = _default_text_stderr()
-        else:
-            file = _default_text_stdout()
+        file = _default_text_stderr() if err else _default_text_stdout()
 
-        # There are no standard streams attached to write to. For example,
-        # pythonw on Windows.
         if file is None:
             return
 
-    # Convert non bytes/text into the native string type.
     if message is not None and not isinstance(message, (str, bytes, bytearray)):
         out: str | bytes | None = str(message)
     else:
         out = message
 
     if nl:
-        out = out or ""
-        if isinstance(out, str):
-            out += "\n"
-        else:
-            out += b"\n"
+        out = (out or "") + ("\n" if isinstance(out, str) else b"\n")
 
     if not out:
         file.flush()
         return
 
-    # If there is a message and the value looks like bytes, we manually
-    # need to find the binary stream and write the message in there.
-    # This is done separately so that most stream types will work as you
-    # would expect. Eg: you can write to StringIO for other cases.
     if isinstance(out, (bytes, bytearray)):
         binary_file = _find_binary_writer(file)
-
         if binary_file is not None:
             file.flush()
             binary_file.write(out)
             binary_file.flush()
             return
-
-    # ANSI style code support. For no message or bytes, nothing happens.
-    # When outputting to a file instead of a terminal, strip codes.
     else:
         color = resolve_color_default(color)
 
-        if should_strip_ansi(file, color):
+        if not (file.isatty() or (color is not False and not sys.platform.startswith('msys'))):
             out = strip_ansi(out)
         elif WIN:
             if auto_wrap_for_ansi is not None:
-                file = auto_wrap_for_ansi(file, color)  # type: ignore
+                file = auto_wrap_for_ansi(file, color)
             elif not color:
                 out = strip_ansi(out)
 
-    file.write(out)  # type: ignore
+    file.write(out)
     file.flush()
 
 
