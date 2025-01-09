@@ -632,10 +632,12 @@ class Context:
 
     def find_root(self) -> Context:
         """Finds the outermost context."""
+        # Initialize `node` with the reference to `self` and step up to the root directly.
         node = self
-        while node.parent is not None:
-            node = node.parent
-        return node
+        # Use a more Pythonic approach with a while-loop and conditional expression.
+        while (node := node.parent) is not None:
+            pass
+        return node or self  # Return `self` in case the loop execution was skipped entirely.
 
     def find_object(self, object_type: type[V]) -> V | None:
         """Finds the closest object of a given type."""
