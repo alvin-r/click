@@ -27,6 +27,9 @@ from ._compat import term_len
 from ._compat import WIN
 from .exceptions import ClickException
 from .utils import echo
+import subprocess
+import webbrowser
+from urllib.parse import unquote
 
 V = t.TypeVar("V")
 
@@ -205,31 +208,27 @@ class ProgressBar(t.Generic[V]):
         return bar
 
     def format_progress_line(self) -> str:
-        show_percent = self.show_percent
+        show_percent = self.show_percent if self.show_percent is not None else not self.show_pos
 
         info_bits = []
-        if self.length is not None and show_percent is None:
-            show_percent = not self.show_pos
+        parts_to_append = (
+            (self.show_pos, self.format_pos),
+            (show_percent, self.format_pct),
+            (self.show_eta and self.eta_known and not self.finished, self.format_eta),
+            (self.item_show_func is not None, lambda: self.item_show_func(self.current_item)),
+        )
 
-        if self.show_pos:
-            info_bits.append(self.format_pos())
-        if show_percent:
-            info_bits.append(self.format_pct())
-        if self.show_eta and self.eta_known and not self.finished:
-            info_bits.append(self.format_eta())
-        if self.item_show_func is not None:
-            item_info = self.item_show_func(self.current_item)
-            if item_info is not None:
-                info_bits.append(item_info)
+        for condition, func in parts_to_append:
+            if condition:
+                item_info = func()
+                if item_info:
+                    info_bits.append(item_info)
 
-        return (
-            self.bar_template
-            % {
-                "label": self.label,
-                "bar": self.format_bar(),
-                "info": self.info_sep.join(info_bits),
-            }
-        ).rstrip()
+        return (self.bar_template % {
+            "label": self.label,
+            "bar": self.format_bar(),
+            "info": self.info_sep.join(info_bits),
+        }).rstrip()
 
     def render_progress(self) -> None:
         import shutil
@@ -238,7 +237,6 @@ class ProgressBar(t.Generic[V]):
             return
 
         if not self._is_atty:
-            # Only output the label once if the output is not a TTY.
             if self._last_line != self.label:
                 self._last_line = self.label
                 echo(self.label, file=self.file, color=self.color)
@@ -252,14 +250,11 @@ class ProgressBar(t.Generic[V]):
             clutter_length = term_len(self.format_progress_line())
             new_width = max(0, shutil.get_terminal_size().columns - clutter_length)
             if new_width < old_width and self.max_width is not None:
-                buf.append(BEFORE_BAR)
-                buf.append(" " * self.max_width)
+                buf.extend([BEFORE_BAR, " " * self.max_width])
                 self.max_width = new_width
             self.width = new_width
 
-        clear_width = self.width
-        if self.max_width is not None:
-            clear_width = self.max_width
+        clear_width = self.width if self.max_width is None else self.max_width
 
         buf.append(BEFORE_BAR)
         line = self.format_progress_line()
@@ -267,10 +262,8 @@ class ProgressBar(t.Generic[V]):
         if self.max_width is None or self.max_width < line_len:
             self.max_width = line_len
 
-        buf.append(line)
-        buf.append(" " * (clear_width - line_len))
+        buf.extend([line, " " * (clear_width - line_len)])
         line = "".join(buf)
-        # Render the line only if it changed.
 
         if line != self._last_line:
             self._last_line = line
@@ -594,63 +587,15 @@ class Editor:
 
 
 def open_url(url: str, wait: bool = False, locate: bool = False) -> int:
-    import subprocess
-
-    def _unquote_file(url: str) -> str:
-        from urllib.parse import unquote
-
-        if url.startswith("file://"):
-            url = unquote(url[7:])
-
-        return url
-
+    """Optimized function to open URLs using platform-specific commands."""
     if sys.platform == "darwin":
-        args = ["open"]
-        if wait:
-            args.append("-W")
-        if locate:
-            args.append("-R")
-        args.append(_unquote_file(url))
-        null = open("/dev/null", "w")
-        try:
-            return subprocess.Popen(args, stderr=null).wait()
-        finally:
-            null.close()
+        return _open_mac(url, wait, locate)
     elif WIN:
-        if locate:
-            url = _unquote_file(url.replace('"', ""))
-            args = f'explorer /select,"{url}"'
-        else:
-            url = url.replace('"', "")
-            wait_str = "/WAIT" if wait else ""
-            args = f'start {wait_str} "" "{url}"'
-        return os.system(args)
+        return _open_windows(url, wait, locate)
     elif CYGWIN:
-        if locate:
-            url = os.path.dirname(_unquote_file(url).replace('"', ""))
-            args = f'cygstart "{url}"'
-        else:
-            url = url.replace('"', "")
-            wait_str = "-w" if wait else ""
-            args = f'cygstart {wait_str} "{url}"'
-        return os.system(args)
-
-    try:
-        if locate:
-            url = os.path.dirname(_unquote_file(url)) or "."
-        else:
-            url = _unquote_file(url)
-        c = subprocess.Popen(["xdg-open", url])
-        if wait:
-            return c.wait()
-        return 0
-    except OSError:
-        if url.startswith(("http://", "https://")) and not locate and not wait:
-            import webbrowser
-
-            webbrowser.open(url)
-            return 0
-        return 1
+        return _open_cygwin(url, wait, locate)
+    else:
+        return _open_unix(url, wait, locate)
 
 
 def _translate_ch_to_exc(ch: str) -> None:
@@ -664,6 +609,70 @@ def _translate_ch_to_exc(ch: str) -> None:
         raise EOFError()
 
     return None
+
+
+def _unquote_file(url: str) -> str:
+    """Helper function to unquote file URLs."""
+    if url.startswith("file://"):
+        return unquote(url[7:])
+    return url
+
+
+def _open_mac(url: str, wait: bool, locate: bool) -> int:
+    """Helper function to open URLs on macOS."""
+    args = ["open"]
+    if wait:
+        args.append("-W")
+    if locate:
+        args.append("-R")
+    args.append(_unquote_file(url))
+    null = open("/dev/null", "w")
+    try:
+        return subprocess.Popen(args, stderr=null).wait()
+    finally:
+        null.close()
+
+
+def _open_windows(url: str, wait: bool, locate: bool) -> int:
+    """Helper function to open URLs on Windows."""
+    if locate:
+        url = _unquote_file(url.replace('"', ""))
+        args = f'explorer /select,"{url}"'
+    else:
+        url = url.replace('"', "")
+        wait_str = "/WAIT" if wait else ""
+        args = f'start {wait_str} "" "{url}"'
+    return os.system(args)
+
+
+def _open_cygwin(url: str, wait: bool, locate: bool) -> int:
+    """Helper function to open URLs on Cygwin."""
+    if locate:
+        url = os.path.dirname(_unquote_file(url).replace('"', ""))
+        args = f'cygstart "{url}"'
+    else:
+        url = url.replace('"', "")
+        wait_str = "-w" if wait else ""
+        args = f'cygstart {wait_str} "{url}"'
+    return os.system(args)
+
+
+def _open_unix(url: str, wait: bool, locate: bool) -> int:
+    """Helper function to open URLs on Unix-like platforms."""
+    try:
+        if locate:
+            url = os.path.dirname(_unquote_file(url)) or "."
+        else:
+            url = _unquote_file(url)
+        c = subprocess.Popen(["xdg-open", url])
+        if wait:
+            return c.wait()
+        return 0
+    except OSError:
+        if url.startswith(("http://", "https://")) and not locate and not wait:
+            webbrowser.open(url)
+            return 0
+        return 1
 
 
 if WIN:
