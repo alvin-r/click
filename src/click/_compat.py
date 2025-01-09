@@ -150,11 +150,10 @@ class _FixupStream:
 
 def _is_binary_reader(stream: t.IO[t.Any], default: bool = False) -> bool:
     try:
+        # Direct check for byte reading
         return isinstance(stream.read(0), bytes)
     except Exception:
-        return default
-        # This happens in some cases where the stream was already
-        # closed.  In this case, we assume the default.
+        return default  # Return default if exception encountered
 
 
 def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
@@ -171,18 +170,13 @@ def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
 
 
 def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
-    # We need to figure out if the given stream is already binary.
-    # This can happen because the official docs recommend detaching
-    # the streams to get binary streams.  Some code might do this, so
-    # we need to deal with this case explicitly.
-    if _is_binary_reader(stream, False):
+    # Return stream if it's binary
+    if _is_binary_reader(stream):
         return t.cast(t.BinaryIO, stream)
 
+    # Check if buffer attribute is present and if it's binary
     buf = getattr(stream, "buffer", None)
-
-    # Same situation here; this time we assume that the buffer is
-    # actually binary in case it's closed.
-    if buf is not None and _is_binary_reader(buf, True):
+    if buf and _is_binary_reader(buf, True):
         return t.cast(t.BinaryIO, buf)
 
     return None
@@ -244,39 +238,21 @@ def _force_correct_text_stream(
     force_readable: bool = False,
     force_writable: bool = False,
 ) -> t.TextIO:
-    if is_binary(text_stream, False):
-        binary_reader = t.cast(t.BinaryIO, text_stream)
-    else:
-        text_stream = t.cast(t.TextIO, text_stream)
-        # If the stream looks compatible, and won't default to a
-        # misconfigured ascii encoding, return it as-is.
-        if _is_compatible_text_stream(text_stream, encoding, errors) and not (
-            encoding is None and _stream_is_misconfigured(text_stream)
-        ):
-            return text_stream
-
-        # Otherwise, get the underlying binary reader.
-        possible_binary_reader = find_binary(text_stream)
-
-        # If that's not possible, silently use the original reader
-        # and get mojibake instead of exceptions.
-        if possible_binary_reader is None:
-            return text_stream
-
-        binary_reader = possible_binary_reader
-
-    # Default errors to replace instead of strict in order to get
-    # something that works.
+    # Check for binary and get binary reader or use existing text stream
+    binary_reader = (
+        t.cast(t.BinaryIO, text_stream) if is_binary(text_stream) 
+        else find_binary(text_stream)
+    )
+    if binary_reader is None:
+        return t.cast(t.TextIO, text_stream)
+    
+    # Configure and return the text stream
     if errors is None:
-        errors = "replace"
+        errors = "replace"  # Default error handling to 'replace'
 
-    # Wrap the binary stream in a text stream with the correct
-    # encoding parameters.
     return _make_text_stream(
-        binary_reader,
-        encoding,
-        errors,
-        force_readable=force_readable,
+        binary_reader, encoding, errors,
+        force_readable=force_readable, 
         force_writable=force_writable,
     )
 
