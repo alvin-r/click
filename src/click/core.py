@@ -12,7 +12,7 @@ from collections import Counter
 from contextlib import AbstractContextManager
 from contextlib import contextmanager
 from contextlib import ExitStack
-from functools import update_wrapper
+from functools import lru_cache, update_wrapper
 from gettext import gettext as _
 from gettext import ngettext
 from itertools import repeat
@@ -910,24 +910,9 @@ class Command:
         hidden: bool = False,
         deprecated: bool | str = False,
     ) -> None:
-        #: the name the command thinks it has.  Upon registering a command
-        #: on a :class:`Group` the group will default the command name
-        #: with this information.  You should instead use the
-        #: :class:`Context`\'s :attr:`~Context.info_name` attribute.
         self.name = name
-
-        if context_settings is None:
-            context_settings = {}
-
-        #: an optional dictionary with defaults passed to the context.
-        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings
-
-        #: the callback to execute when the command fires.  This might be
-        #: `None` in which case nothing happens.
+        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings or {}
         self.callback = callback
-        #: the list of parameters for this command in the order they
-        #: should show up in the help page and execute.  Eager parameters
-        #: will automatically be handled before non eager ones.
         self.params: list[Parameter] = params or []
         self.help = help
         self.epilog = epilog
@@ -937,6 +922,9 @@ class Command:
         self.no_args_is_help = no_args_is_help
         self.hidden = hidden
         self.deprecated = deprecated
+        
+        # Trigger short_help computation at initialization
+        self._computed_short_help = self.get_short_help_str()
 
     def to_info_dict(self, ctx: Context) -> dict[str, t.Any]:
         return {
@@ -1050,6 +1038,7 @@ class Command:
         self.format_help(ctx, formatter)
         return formatter.getvalue().rstrip("\n")
 
+    @lru_cache(maxsize=None)
     def get_short_help_str(self, limit: int = 45) -> str:
         """Gets short help for the command or makes it by shortening the
         long help string.
