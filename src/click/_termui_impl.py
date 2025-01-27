@@ -595,39 +595,39 @@ class Editor:
 
 def open_url(url: str, wait: bool = False, locate: bool = False) -> int:
     import subprocess
+    import webbrowser
+    from urllib.parse import unquote
 
-    def _unquote_file(url: str) -> str:
-        from urllib.parse import unquote
-
+    def _prepare_url_for_unquote(url: str, locate: bool) -> str:
         if url.startswith("file://"):
             url = unquote(url[7:])
-
+        if locate:
+            return os.path.dirname(url)
         return url
 
-    if sys.platform == "darwin":
+    def _darwin_open(url: str, wait: bool, locate: bool) -> int:
         args = ["open"]
         if wait:
             args.append("-W")
         if locate:
             args.append("-R")
-        args.append(_unquote_file(url))
-        null = open("/dev/null", "w")
-        try:
+        args.append(_prepare_url_for_unquote(url, locate))
+        with open("/dev/null", "w") as null:
             return subprocess.Popen(args, stderr=null).wait()
-        finally:
-            null.close()
-    elif WIN:
+
+    def _windows_open(url: str, wait: bool, locate: bool) -> int:
         if locate:
-            url = _unquote_file(url.replace('"', ""))
+            url = _prepare_url_for_unquote(url.replace('"', ""), locate)
             args = f'explorer /select,"{url}"'
         else:
             url = url.replace('"', "")
             wait_str = "/WAIT" if wait else ""
             args = f'start {wait_str} "" "{url}"'
         return os.system(args)
-    elif CYGWIN:
+
+    def _cygwin_open(url: str, wait: bool, locate: bool) -> int:
         if locate:
-            url = os.path.dirname(_unquote_file(url).replace('"', ""))
+            url = _prepare_url_for_unquote(url.replace('"', ""), locate)
             args = f'cygstart "{url}"'
         else:
             url = url.replace('"', "")
@@ -635,22 +635,27 @@ def open_url(url: str, wait: bool = False, locate: bool = False) -> int:
             args = f'cygstart {wait_str} "{url}"'
         return os.system(args)
 
-    try:
-        if locate:
-            url = os.path.dirname(_unquote_file(url)) or "."
-        else:
-            url = _unquote_file(url)
-        c = subprocess.Popen(["xdg-open", url])
-        if wait:
-            return c.wait()
-        return 0
-    except OSError:
-        if url.startswith(("http://", "https://")) and not locate and not wait:
-            import webbrowser
-
-            webbrowser.open(url)
+    def _unix_open(url: str, wait: bool) -> int:
+        try:
+            prepared_url = _prepare_url_for_unquote(url, locate)
+            c = subprocess.Popen(["xdg-open", prepared_url])
+            if wait:
+                return c.wait()
             return 0
-        return 1
+        except OSError:
+            if url.startswith(("http://", "https://")) and not locate and not wait:
+                webbrowser.open(url)
+                return 0
+            return 1
+
+    if sys.platform == "darwin":
+        return _darwin_open(url, wait, locate)
+    elif WIN:
+        return _windows_open(url, wait, locate)
+    elif CYGWIN:
+        return _cygwin_open(url, wait, locate)
+    else:
+        return _unix_open(url, wait)
 
 
 def _translate_ch_to_exc(ch: str) -> None:
