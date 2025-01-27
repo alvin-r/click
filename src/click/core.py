@@ -894,7 +894,6 @@ class Command:
 
     #: the default for the :attr:`Context.ignore_unknown_options` flag.
     ignore_unknown_options = False
-
     def __init__(
         self,
         name: str | None,
@@ -910,24 +909,13 @@ class Command:
         hidden: bool = False,
         deprecated: bool | str = False,
     ) -> None:
-        #: the name the command thinks it has.  Upon registering a command
-        #: on a :class:`Group` the group will default the command name
-        #: with this information.  You should instead use the
-        #: :class:`Context`\'s :attr:`~Context.info_name` attribute.
         self.name = name
 
         if context_settings is None:
             context_settings = {}
 
-        #: an optional dictionary with defaults passed to the context.
         self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings
-
-        #: the callback to execute when the command fires.  This might be
-        #: `None` in which case nothing happens.
         self.callback = callback
-        #: the list of parameters for this command in the order they
-        #: should show up in the help page and execute.  Eager parameters
-        #: will automatically be handled before non eager ones.
         self.params: list[Parameter] = params or []
         self.help = help
         self.epilog = epilog
@@ -937,6 +925,12 @@ class Command:
         self.no_args_is_help = no_args_is_help
         self.hidden = hidden
         self.deprecated = deprecated
+
+        # Precompute the set of option names that params occupy for fast lookup
+        # This is an addition to improve performance when calling `get_help_option_names`
+        self._param_opts_sets = set()
+        for param in self.params:
+            self._param_opts_sets.update(param.opts, param.secondary_opts)
 
     def to_info_dict(self, ctx: Context) -> dict[str, t.Any]:
         return {
@@ -1007,11 +1001,9 @@ class Command:
 
     def get_help_option_names(self, ctx: Context) -> list[str]:
         """Returns the names for the help option."""
-        all_names = set(ctx.help_option_names)
-        for param in self.params:
-            all_names.difference_update(param.opts)
-            all_names.difference_update(param.secondary_opts)
-        return list(all_names)
+        # Use set difference in one operation for faster performance
+        help_option_names = set(ctx.help_option_names) - self._param_opts_sets
+        return list(help_option_names)
 
     def get_help_option(self, ctx: Context) -> Option | None:
         """Returns the help option object."""
