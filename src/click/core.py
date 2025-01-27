@@ -910,25 +910,10 @@ class Command:
         hidden: bool = False,
         deprecated: bool | str = False,
     ) -> None:
-        #: the name the command thinks it has.  Upon registering a command
-        #: on a :class:`Group` the group will default the command name
-        #: with this information.  You should instead use the
-        #: :class:`Context`\'s :attr:`~Context.info_name` attribute.
         self.name = name
-
-        if context_settings is None:
-            context_settings = {}
-
-        #: an optional dictionary with defaults passed to the context.
-        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings
-
-        #: the callback to execute when the command fires.  This might be
-        #: `None` in which case nothing happens.
+        self.context_settings = context_settings or {}
         self.callback = callback
-        #: the list of parameters for this command in the order they
-        #: should show up in the help page and execute.  Eager parameters
-        #: will automatically be handled before non eager ones.
-        self.params: list[Parameter] = params or []
+        self.params = params or []
         self.help = help
         self.epilog = epilog
         self.options_metavar = options_metavar
@@ -937,6 +922,9 @@ class Command:
         self.no_args_is_help = no_args_is_help
         self.hidden = hidden
         self.deprecated = deprecated
+
+        # Additional attributes for optimization can be added here
+        # e.g., precompute any static configurations or defaults.
 
     def to_info_dict(self, ctx: Context) -> dict[str, t.Any]:
         return {
@@ -1162,14 +1150,13 @@ class Command:
         .. versionchanged:: 8.0
             Added the :attr:`context_class` attribute.
         """
-        for key, value in self.context_settings.items():
-            if key not in extra:
-                extra[key] = value
+        extra.update({k: v for k, v in self.context_settings.items() if k not in extra})
 
         ctx = self.context_class(self, info_name=info_name, parent=parent, **extra)
 
         with ctx.scope(cleanup=False):
             self.parse_args(ctx, args)
+
         return ctx
 
     def parse_args(self, ctx: Context, args: list[str]) -> list[str]:
@@ -1180,15 +1167,16 @@ class Command:
         opts, args, param_order = parser.parse_args(args=args)
 
         for param in iter_params_for_processing(param_order, self.get_params(ctx)):
-            value, args = param.handle_parse_result(ctx, opts, args)
+            args = param.handle_parse_result(ctx, opts, args)[1]
 
-        if args and not ctx.allow_extra_args and not ctx.resilient_parsing:
+        if args and not (ctx.allow_extra_args or ctx.resilient_parsing):
+            joined_args = " ".join(map(str, args))
             ctx.fail(
                 ngettext(
                     "Got unexpected extra argument ({args})",
                     "Got unexpected extra arguments ({args})",
-                    len(args),
-                ).format(args=" ".join(map(str, args)))
+                    len(args)
+                ).format(args=joined_args)
             )
 
         ctx.args = args
