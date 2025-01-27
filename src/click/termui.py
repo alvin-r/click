@@ -9,7 +9,7 @@ import typing as t
 from contextlib import AbstractContextManager
 from gettext import gettext as _
 
-from ._compat import isatty
+from ._compat import _ansi_re, isatty
 from ._compat import strip_ansi
 from .exceptions import Abort
 from .exceptions import UsageError
@@ -647,7 +647,7 @@ def unstyle(text: str) -> str:
 
     :param text: the text to remove style information from.
     """
-    return strip_ansi(text)
+    return _ansi_re.sub("", text)
 
 
 def secho(
