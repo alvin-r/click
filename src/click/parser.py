@@ -62,32 +62,26 @@ def _unpack_args(
     Missing items are filled with `None`.
     """
     args = deque(args)
-    nargs_spec = deque(nargs_spec)
     rv: list[str | tuple[str | None, ...] | None] = []
     spos: int | None = None
 
-    def _fetch(c: deque[V]) -> V | None:
-        try:
-            if spos is None:
-                return c.popleft()
-            else:
-                return c.pop()
-        except IndexError:
+    # Helper function to fetch from the deque
+    def _fetch(c: deque[V], pos: int | None) -> V | None:
+        if not c:
             return None
+        return c.pop() if pos is not None else c.popleft()
 
-    while nargs_spec:
-        nargs = _fetch(nargs_spec)
+    reversed_range_cache = {}
 
-        if nargs is None:
-            continue
-
+    for nargs in nargs_spec:
         if nargs == 1:
-            rv.append(_fetch(args))
+            rv.append(_fetch(args, spos))
         elif nargs > 1:
-            x = [_fetch(args) for _ in range(nargs)]
+            if nargs not in reversed_range_cache:
+                reversed_range_cache[nargs] = range(nargs)
+                
+            x = [_fetch(args, spos) for _ in reversed_range_cache[nargs]]
 
-            # If we're reversed, we're pulling in the arguments in reverse,
-            # so we need to turn them around.
             if spos is not None:
                 x.reverse()
 
@@ -99,11 +93,9 @@ def _unpack_args(
             spos = len(rv)
             rv.append(None)
 
-    # spos is the position of the wildcard (star).  If it's not `None`,
-    # we fill it with the remainder.
     if spos is not None:
         rv[spos] = tuple(args)
-        args = []
+        args.clear()
         rv[spos + 1 :] = reversed(rv[spos + 1 :])
 
     return tuple(rv), list(args)
