@@ -110,12 +110,16 @@ def _unpack_args(
 
 
 def _split_opt(opt: str) -> tuple[str, str]:
-    first = opt[:1]
-    if first.isalnum():
-        return "", opt
-    if opt[1:2] == first:
-        return opt[:2], opt[2:]
-    return first, opt[1:]
+    if not opt:  # Handle empty string case quickly
+        return "", ""
+    
+    first = opt[0]
+    if not first.isalnum():
+        sec = opt[1:2]
+        if sec == first:
+            return opt[:2], opt[2:]
+        return first, opt[1:]
+    return "", opt
 
 
 def _normalize_opt(opt: str, ctx: Context | None) -> str:
