@@ -74,7 +74,7 @@ def _build_prompt(
 
 
 def _format_default(default: t.Any) -> t.Any:
-    if isinstance(default, (io.IOBase, LazyFile)) and hasattr(default, "name"):
+    if hasattr(default, "name") and isinstance(default, (io.IOBase, LazyFile)):
         return default.name
 
     return default
