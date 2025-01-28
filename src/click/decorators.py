@@ -135,35 +135,191 @@ CmdType = t.TypeVar("CmdType", bound=Command)
 
 
 # variant: no call, directly as decorator for a function.
-@t.overload
-def command(name: _AnyCallable) -> Command: ...
+def command(name: _AnyCallable) -> Command:
+    """Creates a new :class:`Command` and uses the decorated function as
+    callback, with specified attributes and modifications."""
+    
+    # Simplifying function assignment and initial checks
+    func: _AnyCallable | None = name if callable(name) else None
+    
+    if func:
+        name = None
+        assert cls is None and not attrs, (
+            "Use 'command(cls=cls)(callable)' and 'command(**kwargs)(callable)' for proper form."
+        )
+    
+    # Default to Command if cls is not given
+    cls = cls or Command
+
+    def decorator(f: _AnyCallable) -> CmdType:
+        if isinstance(f, Command):
+            raise TypeError("Cannot convert a callback into a command twice.")
+        
+        params = attrs.pop("params", []) or []
+
+        # Collect parameters from decorated attributes
+        try:
+            params.extend(reversed(getattr(f, "__click_params__", [])))
+            del f.__click_params__  # Remove the parameter after using it
+        except AttributeError:
+            pass
+        
+        attrs.setdefault("help", f.__doc__)
+
+        cmd_name = name if name else _generate_cmd_name(f.__name__)
+        
+        cmd = cls(name=cmd_name, callback=f, params=params, **attrs)
+        cmd.__doc__ = f.__doc__
+        return cmd
+
+    if func:
+        return decorator(func)
+
+    return decorator
 
 
 # variant: with positional name and with positional or keyword cls argument:
 # @command(namearg, CommandCls, ...) or @command(namearg, cls=CommandCls, ...)
-@t.overload
 def command(
     name: str | None,
     cls: type[CmdType],
     **attrs: t.Any,
-) -> t.Callable[[_AnyCallable], CmdType]: ...
+) -> t.Callable[[_AnyCallable], CmdType]:
+    """Creates a new :class:`Command` and uses the decorated function as
+    callback, with specified attributes and modifications."""
+    
+    # Simplifying function assignment and initial checks
+    func: _AnyCallable | None = name if callable(name) else None
+    
+    if func:
+        name = None
+        assert cls is None and not attrs, (
+            "Use 'command(cls=cls)(callable)' and 'command(**kwargs)(callable)' for proper form."
+        )
+    
+    # Default to Command if cls is not given
+    cls = cls or Command
+
+    def decorator(f: _AnyCallable) -> CmdType:
+        if isinstance(f, Command):
+            raise TypeError("Cannot convert a callback into a command twice.")
+        
+        params = attrs.pop("params", []) or []
+
+        # Collect parameters from decorated attributes
+        try:
+            params.extend(reversed(getattr(f, "__click_params__", [])))
+            del f.__click_params__  # Remove the parameter after using it
+        except AttributeError:
+            pass
+        
+        attrs.setdefault("help", f.__doc__)
+
+        cmd_name = name if name else _generate_cmd_name(f.__name__)
+        
+        cmd = cls(name=cmd_name, callback=f, params=params, **attrs)
+        cmd.__doc__ = f.__doc__
+        return cmd
+
+    if func:
+        return decorator(func)
+
+    return decorator
 
 
 # variant: name omitted, cls _must_ be a keyword argument, @command(cls=CommandCls, ...)
-@t.overload
 def command(
     name: None = None,
     *,
     cls: type[CmdType],
     **attrs: t.Any,
-) -> t.Callable[[_AnyCallable], CmdType]: ...
+) -> t.Callable[[_AnyCallable], CmdType]:
+    """Creates a new :class:`Command` and uses the decorated function as
+    callback, with specified attributes and modifications."""
+    
+    # Simplifying function assignment and initial checks
+    func: _AnyCallable | None = name if callable(name) else None
+    
+    if func:
+        name = None
+        assert cls is None and not attrs, (
+            "Use 'command(cls=cls)(callable)' and 'command(**kwargs)(callable)' for proper form."
+        )
+    
+    # Default to Command if cls is not given
+    cls = cls or Command
+
+    def decorator(f: _AnyCallable) -> CmdType:
+        if isinstance(f, Command):
+            raise TypeError("Cannot convert a callback into a command twice.")
+        
+        params = attrs.pop("params", []) or []
+
+        # Collect parameters from decorated attributes
+        try:
+            params.extend(reversed(getattr(f, "__click_params__", [])))
+            del f.__click_params__  # Remove the parameter after using it
+        except AttributeError:
+            pass
+        
+        attrs.setdefault("help", f.__doc__)
+
+        cmd_name = name if name else _generate_cmd_name(f.__name__)
+        
+        cmd = cls(name=cmd_name, callback=f, params=params, **attrs)
+        cmd.__doc__ = f.__doc__
+        return cmd
+
+    if func:
+        return decorator(func)
+
+    return decorator
 
 
 # variant: with optional string name, no cls argument provided.
-@t.overload
 def command(
     name: str | None = ..., cls: None = None, **attrs: t.Any
-) -> t.Callable[[_AnyCallable], Command]: ...
+) -> t.Callable[[_AnyCallable], Command]:
+    """Creates a new :class:`Command` and uses the decorated function as
+    callback, with specified attributes and modifications."""
+    
+    # Simplifying function assignment and initial checks
+    func: _AnyCallable | None = name if callable(name) else None
+    
+    if func:
+        name = None
+        assert cls is None and not attrs, (
+            "Use 'command(cls=cls)(callable)' and 'command(**kwargs)(callable)' for proper form."
+        )
+    
+    # Default to Command if cls is not given
+    cls = cls or Command
+
+    def decorator(f: _AnyCallable) -> CmdType:
+        if isinstance(f, Command):
+            raise TypeError("Cannot convert a callback into a command twice.")
+        
+        params = attrs.pop("params", []) or []
+
+        # Collect parameters from decorated attributes
+        try:
+            params.extend(reversed(getattr(f, "__click_params__", [])))
+            del f.__click_params__  # Remove the parameter after using it
+        except AttributeError:
+            pass
+        
+        attrs.setdefault("help", f.__doc__)
+
+        cmd_name = name if name else _generate_cmd_name(f.__name__)
+        
+        cmd = cls(name=cmd_name, callback=f, params=params, **attrs)
+        cmd.__doc__ = f.__doc__
+        return cmd
+
+    if func:
+        return decorator(func)
+
+    return decorator
 
 
 def command(
@@ -171,86 +327,43 @@ def command(
     cls: type[CmdType] | None = None,
     **attrs: t.Any,
 ) -> Command | t.Callable[[_AnyCallable], Command | CmdType]:
-    r"""Creates a new :class:`Command` and uses the decorated function as
-    callback.  This will also automatically attach all decorated
-    :func:`option`\s and :func:`argument`\s as parameters to the command.
-
-    The name of the command defaults to the name of the function, converted to
-    lowercase, with underscores ``_`` replaced by dashes ``-``, and the suffixes
-    ``_command``, ``_cmd``, ``_group``, and ``_grp`` are removed. For example,
-    ``init_data_command`` becomes ``init-data``.
-
-    All keyword arguments are forwarded to the underlying command class.
-    For the ``params`` argument, any decorated params are appended to
-    the end of the list.
-
-    Once decorated the function turns into a :class:`Command` instance
-    that can be invoked as a command line utility or be attached to a
-    command :class:`Group`.
-
-    :param name: The name of the command. Defaults to modifying the function's
-        name as described above.
-    :param cls: The command class to create. Defaults to :class:`Command`.
-
-    .. versionchanged:: 8.2
-        The suffixes ``_command``, ``_cmd``, ``_group``, and ``_grp`` are
-        removed when generating the name.
-
-    .. versionchanged:: 8.1
-        This decorator can be applied without parentheses.
-
-    .. versionchanged:: 8.1
-        The ``params`` argument can be used. Decorated params are
-        appended to the end of the list.
-    """
-
-    func: t.Callable[[_AnyCallable], t.Any] | None = None
-
-    if callable(name):
-        func = name
+    """Creates a new :class:`Command` and uses the decorated function as
+    callback, with specified attributes and modifications."""
+    
+    # Simplifying function assignment and initial checks
+    func: _AnyCallable | None = name if callable(name) else None
+    
+    if func:
         name = None
-        assert cls is None, "Use 'command(cls=cls)(callable)' to specify a class."
-        assert not attrs, "Use 'command(**kwargs)(callable)' to provide arguments."
-
-    if cls is None:
-        cls = t.cast("type[CmdType]", Command)
+        assert cls is None and not attrs, (
+            "Use 'command(cls=cls)(callable)' and 'command(**kwargs)(callable)' for proper form."
+        )
+    
+    # Default to Command if cls is not given
+    cls = cls or Command
 
     def decorator(f: _AnyCallable) -> CmdType:
         if isinstance(f, Command):
-            raise TypeError("Attempted to convert a callback into a command twice.")
+            raise TypeError("Cannot convert a callback into a command twice.")
+        
+        params = attrs.pop("params", []) or []
 
-        attr_params = attrs.pop("params", None)
-        params = attr_params if attr_params is not None else []
-
+        # Collect parameters from decorated attributes
         try:
-            decorator_params = f.__click_params__  # type: ignore
+            params.extend(reversed(getattr(f, "__click_params__", [])))
+            del f.__click_params__  # Remove the parameter after using it
         except AttributeError:
             pass
-        else:
-            del f.__click_params__  # type: ignore
-            params.extend(reversed(decorator_params))
+        
+        attrs.setdefault("help", f.__doc__)
 
-        if attrs.get("help") is None:
-            attrs["help"] = f.__doc__
-
-        if t.TYPE_CHECKING:
-            assert cls is not None
-            assert not callable(name)
-
-        if name is not None:
-            cmd_name = name
-        else:
-            cmd_name = f.__name__.lower().replace("_", "-")
-            cmd_left, sep, suffix = cmd_name.rpartition("-")
-
-            if sep and suffix in {"command", "cmd", "group", "grp"}:
-                cmd_name = cmd_left
-
+        cmd_name = name if name else _generate_cmd_name(f.__name__)
+        
         cmd = cls(name=cmd_name, callback=f, params=params, **attrs)
         cmd.__doc__ = f.__doc__
         return cmd
 
-    if func is not None:
+    if func:
         return decorator(func)
 
     return decorator
@@ -260,35 +373,59 @@ GrpType = t.TypeVar("GrpType", bound=Group)
 
 
 # variant: no call, directly as decorator for a function.
-@t.overload
-def group(name: _AnyCallable) -> Group: ...
+def group(name: _AnyCallable) -> Group:
+    """Creates a new :class:`Group` and uses the decorated function as callback."""
+    cls = cls or Group
+
+    if callable(name):
+        return command(cls=cls, **attrs)(name)
+
+    return command(name, cls, **attrs)
 
 
 # variant: with positional name and with positional or keyword cls argument:
 # @group(namearg, GroupCls, ...) or @group(namearg, cls=GroupCls, ...)
-@t.overload
 def group(
     name: str | None,
     cls: type[GrpType],
     **attrs: t.Any,
-) -> t.Callable[[_AnyCallable], GrpType]: ...
+) -> t.Callable[[_AnyCallable], GrpType]:
+    """Creates a new :class:`Group` and uses the decorated function as callback."""
+    cls = cls or Group
+
+    if callable(name):
+        return command(cls=cls, **attrs)(name)
+
+    return command(name, cls, **attrs)
 
 
 # variant: name omitted, cls _must_ be a keyword argument, @group(cmd=GroupCls, ...)
-@t.overload
 def group(
     name: None = None,
     *,
     cls: type[GrpType],
     **attrs: t.Any,
-) -> t.Callable[[_AnyCallable], GrpType]: ...
+) -> t.Callable[[_AnyCallable], GrpType]:
+    """Creates a new :class:`Group` and uses the decorated function as callback."""
+    cls = cls or Group
+
+    if callable(name):
+        return command(cls=cls, **attrs)(name)
+
+    return command(name, cls, **attrs)
 
 
 # variant: with optional string name, no cls argument provided.
-@t.overload
 def group(
     name: str | None = ..., cls: None = None, **attrs: t.Any
-) -> t.Callable[[_AnyCallable], Group]: ...
+) -> t.Callable[[_AnyCallable], Group]:
+    """Creates a new :class:`Group` and uses the decorated function as callback."""
+    cls = cls or Group
+
+    if callable(name):
+        return command(cls=cls, **attrs)(name)
+
+    return command(name, cls, **attrs)
 
 
 def group(
@@ -296,15 +433,8 @@ def group(
     cls: type[GrpType] | None = None,
     **attrs: t.Any,
 ) -> Group | t.Callable[[_AnyCallable], Group | GrpType]:
-    """Creates a new :class:`Group` with a function as callback.  This
-    works otherwise the same as :func:`command` just that the `cls`
-    parameter is set to :class:`Group`.
-
-    .. versionchanged:: 8.1
-        This decorator can be applied without parentheses.
-    """
-    if cls is None:
-        cls = t.cast("type[GrpType]", Group)
+    """Creates a new :class:`Group` and uses the decorated function as callback."""
+    cls = cls or Group
 
     if callable(name):
         return command(cls=cls, **attrs)(name)
@@ -563,3 +693,8 @@ def help_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], FC]:
     """
     kwargs.setdefault("cls", HelpOption)
     return option(*param_decls, **kwargs)
+
+def _generate_cmd_name(func_name: str) -> str:
+    cmd_name = func_name.lower().replace("_", "-")
+    cmd_left, sep, suffix = cmd_name.rpartition("-")
+    return cmd_left if sep and suffix in {"command", "cmd", "group", "grp"} else cmd_name
