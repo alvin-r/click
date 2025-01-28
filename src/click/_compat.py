@@ -230,9 +230,12 @@ def _is_compatible_text_stream(
     """Check if a stream's encoding and errors attributes are
     compatible with the desired values.
     """
-    return _is_compat_stream_attr(
-        stream, "encoding", encoding
-    ) and _is_compat_stream_attr(stream, "errors", errors)
+    stream_encoding = getattr(stream, "encoding", None)
+    stream_errors = getattr(stream, "errors", None)
+    return (
+        (stream_encoding == encoding or (encoding is None and stream_encoding is not None)) and
+        (stream_errors == errors or (errors is None and stream_errors is not None))
+    )
 
 
 def _force_correct_text_stream(
