@@ -40,17 +40,25 @@ def _make_text_stream(
 def is_ascii_encoding(encoding: str) -> bool:
     """Checks if a given encoding is ascii."""
     try:
-        return codecs.lookup(encoding).name == "ascii"
+        codec_name = codecs.lookup(encoding).name
+        return codec_name == "ascii"
     except LookupError:
         return False
 
 
 def get_best_encoding(stream: t.IO[t.Any]) -> str:
     """Returns the default stream encoding if not found."""
-    rv = getattr(stream, "encoding", None) or sys.getdefaultencoding()
-    if is_ascii_encoding(rv):
+    encoding = getattr(stream, "encoding", None)
+    if not encoding:
+        encoding = sys.getdefaultencoding()
+
+    # Directly return "utf-8" if encoding is ascii to avoid another lookup
+    if encoding == "ascii":
         return "utf-8"
-    return rv
+
+    # Since only ascii encoding needs special handling, 
+    # reduce lookup to once per scenario.
+    return encoding if encoding != "ascii" else "utf-8"
 
 
 class _NonClosingTextIOWrapper(io.TextIOWrapper):
