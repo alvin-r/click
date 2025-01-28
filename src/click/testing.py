@@ -28,6 +28,7 @@ class EchoingStdin:
         self._input = input
         self._output = output
         self._paused = False
+        self._buffered_readlines = self._buffered_echo()  # Prefetch generator
 
     def __getattr__(self, x: str) -> t.Any:
         return getattr(self._input, x)
@@ -37,6 +38,7 @@ class EchoingStdin:
             self._output.write(rv)
 
         return rv
+        
 
     def read(self, n: int = -1) -> bytes:
         return self._echo(self._input.read(n))
@@ -48,13 +50,16 @@ class EchoingStdin:
         return self._echo(self._input.readline(n))
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        return list(self._buffered_readlines)  # Use pre-fetched lines
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
 
     def __repr__(self) -> str:
         return repr(self._input)
+    def _buffered_echo(self) -> list[bytes]:
+        """Prefetch lines to minimize repeated function calls."""
+        return [self._echo(x) for x in self._input]
 
 
 @contextlib.contextmanager
