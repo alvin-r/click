@@ -239,7 +239,9 @@ class CliRunner:
         echo_stdin: bool = False,
     ) -> None:
         self.charset = charset
-        self.env: cabc.Mapping[str, str | None] = env or {}
+        # Convert to a normal dictionary once, if env is provided, to improve access times.
+        # Normal dictionaries are generally faster for lookups compared to some Mapping types.
+        self.env: cabc.Mapping[str, str | None] = dict(env) if env is not None else {}
         self.echo_stdin = echo_stdin
 
     def get_default_prog_name(self, cli: Command) -> str:
@@ -253,10 +255,10 @@ class CliRunner:
         self, overrides: cabc.Mapping[str, str | None] | None = None
     ) -> cabc.Mapping[str, str | None]:
         """Returns the environment overrides for invoking a script."""
-        rv = dict(self.env)
+        # Use Dictionary unpacking for merging dictionaries, which is efficient in Python 3.9+
         if overrides:
-            rv.update(overrides)
-        return rv
+            return {**self.env, **overrides}
+        return self.env
 
     @contextlib.contextmanager
     def isolation(
