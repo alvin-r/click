@@ -180,6 +180,10 @@ class Result:
         self.exception = exception
         self.exc_info = exc_info
 
+        # Precompute repr string for improved performance on repeated calls
+        exc_str = repr(self.exception) if self.exception else "okay"
+        self._repr = f"<{type(self).__name__} {exc_str}>"
+
     @property
     def output(self) -> str:
         """The terminal output as unicode string, as the user would see it.
@@ -211,8 +215,7 @@ class Result:
         )
 
     def __repr__(self) -> str:
-        exc_str = repr(self.exception) if self.exception else "okay"
-        return f"<{type(self).__name__} {exc_str}>"
+        return self._repr
 
 
 class CliRunner:
