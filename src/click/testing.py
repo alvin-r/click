@@ -28,14 +28,13 @@ class EchoingStdin:
         self._input = input
         self._output = output
         self._paused = False
+        self._buffered_write = output.write if not self._paused else lambda x: None
 
     def __getattr__(self, x: str) -> t.Any:
         return getattr(self._input, x)
 
     def _echo(self, rv: bytes) -> bytes:
-        if not self._paused:
-            self._output.write(rv)
-
+        self._buffered_write(rv)
         return rv
 
     def read(self, n: int = -1) -> bytes:
