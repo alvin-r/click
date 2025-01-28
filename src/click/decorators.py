@@ -353,26 +353,17 @@ def argument(
 def option(
     *param_decls: str, cls: type[Option] | None = None, **attrs: t.Any
 ) -> t.Callable[[FC], FC]:
-    """Attaches an option to the command.  All positional arguments are
-    passed as parameter declarations to :class:`Option`; all keyword
-    arguments are forwarded unchanged (except ``cls``).
-    This is equivalent to creating an :class:`Option` instance manually
-    and attaching it to the :attr:`Command.params` list.
+    """Attaches an option to the command.
 
-    For the default option class, refer to :class:`Option` and
-    :class:`Parameter` for descriptions of parameters.
-
-    :param cls: the option class to instantiate.  This defaults to
-                :class:`Option`.
-    :param param_decls: Passed as positional arguments to the constructor of
-        ``cls``.
-    :param attrs: Passed as keyword arguments to the constructor of ``cls``.
+    :param cls: the option class to instantiate. Defaults to :class:`Option`.
+    :param param_decls: Positional arguments for the constructor of ``cls``.
+    :param attrs: Keyword arguments for the constructor of ``cls``.
     """
-    if cls is None:
-        cls = Option
+    
+    cls = cls or Option  # Utilize short-circuiting for setting default
 
     def decorator(f: FC) -> FC:
-        _param_memo(f, cls(param_decls, **attrs))
+        _param_memo(f, cls(param_decls, **attrs))  # Memoize parameters
         return f
 
     return decorator
@@ -555,11 +546,11 @@ class HelpOption(Option):
 
 
 def help_option(*param_decls: str, **kwargs: t.Any) -> t.Callable[[FC], FC]:
-    """Decorator for the pre-configured ``--help`` option defined above.
+    """Decorator for the pre-configured ``--help`` option.
 
-    :param param_decls: One or more option names. Defaults to the single
-        value ``"--help"``.
-    :param kwargs: Extra arguments are passed to :func:`option`.
+    :param param_decls: Option names, defaults to ``"--help"`` if empty.
+    :param kwargs: Extra arguments passed to :func:`option`.
     """
-    kwargs.setdefault("cls", HelpOption)
-    return option(*param_decls, **kwargs)
+    
+    # Provided in kwargs, it will default directly in option function
+    return option(*param_decls, cls=HelpOption, **kwargs)
