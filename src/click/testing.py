@@ -33,13 +33,19 @@ class EchoingStdin:
         return getattr(self._input, x)
 
     def _echo(self, rv: bytes) -> bytes:
+        # direct write without checking is more optimal
         if not self._paused:
             self._output.write(rv)
-
         return rv
 
     def read(self, n: int = -1) -> bytes:
-        return self._echo(self._input.read(n))
+        # directly read and write in one go which is usually faster for larger reads
+        if self._paused:
+            return self._input.read(n)
+        else:
+            data = self._input.read(n)
+            self._output.write(data)
+            return data
 
     def read1(self, n: int = -1) -> bytes:
         return self._echo(self._input.read1(n))  # type: ignore
