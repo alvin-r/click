@@ -14,6 +14,7 @@ from .core import Option
 from .core import Parameter
 from .globals import get_current_context
 from .utils import echo
+import typing_extensions as te
 
 if t.TYPE_CHECKING:
     import typing_extensions as te
@@ -113,16 +114,17 @@ def pass_meta_key(
     .. versionadded:: 8.0
     """
 
+    if doc_description is None:
+        doc_description = f"the {key!r} key from :attr:`click.Context.meta`"
+
     def decorator(f: t.Callable[te.Concatenate[T, P], R]) -> t.Callable[P, R]:
         def new_func(*args: P.args, **kwargs: P.kwargs) -> R:
             ctx = get_current_context()
             obj = ctx.meta[key]
             return ctx.invoke(f, obj, *args, **kwargs)
 
-        return update_wrapper(new_func, f)
-
-    if doc_description is None:
-        doc_description = f"the {key!r} key from :attr:`click.Context.meta`"
+        update_wrapper(new_func, f)
+        return new_func 
 
     decorator.__doc__ = (
         f"Decorator that passes {doc_description} as the first argument"
