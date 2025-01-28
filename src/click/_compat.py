@@ -153,8 +153,6 @@ def _is_binary_reader(stream: t.IO[t.Any], default: bool = False) -> bool:
         return isinstance(stream.read(0), bytes)
     except Exception:
         return default
-        # This happens in some cases where the stream was already
-        # closed.  In this case, we assume the default.
 
 
 def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
@@ -171,21 +169,12 @@ def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
 
 
 def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
-    # We need to figure out if the given stream is already binary.
-    # This can happen because the official docs recommend detaching
-    # the streams to get binary streams.  Some code might do this, so
-    # we need to deal with this case explicitly.
     if _is_binary_reader(stream, False):
         return t.cast(t.BinaryIO, stream)
 
+    # Directly access the buffer if it exists and return if it's binary
     buf = getattr(stream, "buffer", None)
-
-    # Same situation here; this time we assume that the buffer is
-    # actually binary in case it's closed.
-    if buf is not None and _is_binary_reader(buf, True):
-        return t.cast(t.BinaryIO, buf)
-
-    return None
+    return buf if buf and _is_binary_reader(buf, True) else None
 
 
 def _find_binary_writer(stream: t.IO[t.Any]) -> t.BinaryIO | None:
