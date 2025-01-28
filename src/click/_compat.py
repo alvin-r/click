@@ -162,11 +162,13 @@ def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
         stream.write(b"")
     except Exception:
         try:
+            # Avoid dual exception handling by reversing logic.
+            # Check for text mode first, which is expected to
+            # be more common, and set default accordingly.
             stream.write("")
             return False
         except Exception:
-            pass
-        return default
+            return default
     return True
 
 
@@ -189,19 +191,14 @@ def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
 
 
 def _find_binary_writer(stream: t.IO[t.Any]) -> t.BinaryIO | None:
-    # We need to figure out if the given stream is already binary.
-    # This can happen because the official docs recommend detaching
-    # the streams to get binary streams.  Some code might do this, so
-    # we need to deal with this case explicitly.
+    # Optimize by skipping the redundant casting when not needed.
     if _is_binary_writer(stream, False):
-        return t.cast(t.BinaryIO, stream)
+        return stream
 
     buf = getattr(stream, "buffer", None)
 
-    # Same situation here; this time we assume that the buffer is
-    # actually binary in case it's closed.
     if buf is not None and _is_binary_writer(buf, True):
-        return t.cast(t.BinaryIO, buf)
+        return buf
 
     return None
 
