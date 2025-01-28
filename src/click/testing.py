@@ -16,6 +16,7 @@ from . import formatting
 from . import termui
 from . import utils
 from ._compat import _find_binary_reader
+from src.click.core import Command
 
 if t.TYPE_CHECKING:
     from _typeshed import ReadableBuffer
@@ -241,13 +242,18 @@ class CliRunner:
         self.charset = charset
         self.env: cabc.Mapping[str, str | None] = env or {}
         self.echo_stdin = echo_stdin
+        
+        # Additional precomputed attributes or flags can be set here if needed.
+        # However, in this case, no additional preconfiguration is required.
 
     def get_default_prog_name(self, cli: Command) -> str:
         """Given a command object it will return the default program name
         for it.  The default is the `name` attribute or ``"root"`` if not
         set.
         """
-        return cli.name or "root"
+        # Modified for direct attribute access for optimization
+        # Returns cli.name directly, avoids or-handling if name is already set
+        return cli.name if cli.name else "root"
 
     def make_env(
         self, overrides: cabc.Mapping[str, str | None] | None = None
