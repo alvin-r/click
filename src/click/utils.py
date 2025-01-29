@@ -328,10 +328,10 @@ def get_binary_stream(name: t.Literal["stdin", "stdout", "stderr"]) -> t.BinaryI
     :param name: the name of the stream to open.  Valid names are ``'stdin'``,
                  ``'stdout'`` and ``'stderr'``
     """
-    opener = binary_streams.get(name)
-    if opener is None:
+    if name not in binary_streams:
         raise TypeError(f"Unknown standard stream '{name}'")
-    return opener()
+    
+    return binary_streams[name]()
 
 
 def get_text_stream(
