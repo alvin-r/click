@@ -40,10 +40,14 @@ def safecall(func: t.Callable[P, R]) -> t.Callable[P, R | None]:
         try:
             return func(*args, **kwargs)
         except Exception:
-            pass
-        return None
+            # Swallow generic exception and return None
+            return None
 
-    return update_wrapper(wrapper, func)
+    # Update wrapper to look like 'func'
+    wrapper.__name__ = func.__name__
+    wrapper.__doc__ = func.__doc__
+
+    return wrapper
 
 
 def make_str(value: t.Any) -> str:
