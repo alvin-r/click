@@ -292,141 +292,63 @@ class Context:
         self.params: dict[str, t.Any] = {}
         #: the leftover arguments.
         self.args: list[str] = []
-        #: protected arguments.  These are arguments that are prepended
-        #: to `args` when certain parsing scenarios are encountered but
-        #: must be never propagated to another arguments.  This is used
-        #: to implement nested parsing.
+        #: protected arguments used for nested parsing, not for propagation.
         self._protected_args: list[str] = []
-        #: the collected prefixes of the command's options.
+        #: collected prefixes of the command's options.
         self._opt_prefixes: set[str] = set(parent._opt_prefixes) if parent else set()
 
+        # Default object linkage
         if obj is None and parent is not None:
             obj = parent.obj
-
-        #: the user object stored.
         self.obj: t.Any = obj
         self._meta: dict[str, t.Any] = getattr(parent, "meta", {})
 
-        #: A dictionary (-like object) with defaults for parameters.
-        if (
-            default_map is None
-            and info_name is not None
-            and parent is not None
-            and parent.default_map is not None
-        ):
+        # Default map setup
+        if default_map is None and info_name and parent and parent.default_map:
             default_map = parent.default_map.get(info_name)
+        self.default_map = default_map
 
-        self.default_map: cabc.MutableMapping[str, t.Any] | None = default_map
-
-        #: This flag indicates if a subcommand is going to be executed. A
-        #: group callback can use this information to figure out if it's
-        #: being executed directly or because the execution flow passes
-        #: onwards to a subcommand. By default it's None, but it can be
-        #: the name of the subcommand to execute.
-        #:
-        #: If chaining is enabled this will be set to ``'*'`` in case
-        #: any commands are executed.  It is however not possible to
-        #: figure out which ones.  If you require this knowledge you
-        #: should use a :func:`result_callback`.
+        #: Indicates if a subcommand is going to be executed.
         self.invoked_subcommand: str | None = None
 
-        if terminal_width is None and parent is not None:
-            terminal_width = parent.terminal_width
+        # Propagating terminal width settings
+        self.terminal_width = terminal_width or (parent and parent.terminal_width)
 
-        #: The width of the terminal (None is autodetection).
-        self.terminal_width: int | None = terminal_width
+        # Propagating max content width settings
+        self.max_content_width = max_content_width or (parent and parent.max_content_width)
 
-        if max_content_width is None and parent is not None:
-            max_content_width = parent.max_content_width
+        # Allow extra args settings
+        self.allow_extra_args = allow_extra_args if allow_extra_args is not None else command.allow_extra_args
 
-        #: The maximum width of formatted content (None implies a sensible
-        #: default which is 80 for most things).
-        self.max_content_width: int | None = max_content_width
+        # Interspersed args settings
+        self.allow_interspersed_args = allow_interspersed_args if allow_interspersed_args is not None else command.allow_interspersed_args
 
-        if allow_extra_args is None:
-            allow_extra_args = command.allow_extra_args
+        # Unknown options settings
+        self.ignore_unknown_options = ignore_unknown_options if ignore_unknown_options is not None else command.ignore_unknown_options
+        
+        # Help option names settings
+        self.help_option_names = help_option_names or (parent and parent.help_option_names) or ["--help"]
 
-        #: Indicates if the context allows extra args or if it should
-        #: fail on parsing.
-        #:
-        #: .. versionadded:: 3.0
-        self.allow_extra_args = allow_extra_args
+        # Token normalization function settings
+        self.token_normalize_func = token_normalize_func or (parent and parent.token_normalize_func)
 
-        if allow_interspersed_args is None:
-            allow_interspersed_args = command.allow_interspersed_args
+        # Resilient parsing flag
+        self.resilient_parsing = resilient_parsing
 
-        #: Indicates if the context allows mixing of arguments and
-        #: options or not.
-        #:
-        #: .. versionadded:: 3.0
-        self.allow_interspersed_args: bool = allow_interspersed_args
+        # Automatic environment variables prefix setup
+        self.auto_envvar_prefix = (
+            auto_envvar_prefix.upper().replace("-", "_") if auto_envvar_prefix else
+            (f"{parent.auto_envvar_prefix}_{self.info_name.upper()}").replace("-", "_")
+            if parent and parent.auto_envvar_prefix and self.info_name else None
+        )
 
-        if ignore_unknown_options is None:
-            ignore_unknown_options = command.ignore_unknown_options
+        # Terminal color settings
+        self.color = color if color is not None else (parent and parent.color)
 
-        #: Instructs click to ignore options that a command does not
-        #: understand and will store it on the context for later
-        #: processing.  This is primarily useful for situations where you
-        #: want to call into external programs.  Generally this pattern is
-        #: strongly discouraged because it's not possibly to losslessly
-        #: forward all arguments.
-        #:
-        #: .. versionadded:: 4.0
-        self.ignore_unknown_options: bool = ignore_unknown_options
+        # Show default flag setup
+        self.show_default = show_default if show_default is not None else (parent and parent.show_default)
 
-        if help_option_names is None:
-            if parent is not None:
-                help_option_names = parent.help_option_names
-            else:
-                help_option_names = ["--help"]
-
-        #: The names for the help options.
-        self.help_option_names: list[str] = help_option_names
-
-        if token_normalize_func is None and parent is not None:
-            token_normalize_func = parent.token_normalize_func
-
-        #: An optional normalization function for tokens.  This is
-        #: options, choices, commands etc.
-        self.token_normalize_func: t.Callable[[str], str] | None = token_normalize_func
-
-        #: Indicates if resilient parsing is enabled.  In that case Click
-        #: will do its best to not cause any failures and default values
-        #: will be ignored. Useful for completion.
-        self.resilient_parsing: bool = resilient_parsing
-
-        # If there is no envvar prefix yet, but the parent has one and
-        # the command on this level has a name, we can expand the envvar
-        # prefix automatically.
-        if auto_envvar_prefix is None:
-            if (
-                parent is not None
-                and parent.auto_envvar_prefix is not None
-                and self.info_name is not None
-            ):
-                auto_envvar_prefix = (
-                    f"{parent.auto_envvar_prefix}_{self.info_name.upper()}"
-                )
-        else:
-            auto_envvar_prefix = auto_envvar_prefix.upper()
-
-        if auto_envvar_prefix is not None:
-            auto_envvar_prefix = auto_envvar_prefix.replace("-", "_")
-
-        self.auto_envvar_prefix: str | None = auto_envvar_prefix
-
-        if color is None and parent is not None:
-            color = parent.color
-
-        #: Controls if styling output is wanted or not.
-        self.color: bool | None = color
-
-        if show_default is None and parent is not None:
-            show_default = parent.show_default
-
-        #: Show option default values when formatting help text.
-        self.show_default: bool | None = show_default
-
+        # Internal properties
         self._close_callbacks: list[t.Callable[[], t.Any]] = []
         self._depth = 0
         self._parameter_source: dict[str, ParameterSource] = {}
@@ -723,11 +645,7 @@ class Context:
         return self.command.get_help(self)
 
     def _make_sub_context(self, command: Command) -> Context:
-        """Create a new context of the same type as this context, but
-        for a new command.
-
-        :meta private:
-        """
+        """Create a new context for a new command, maintaining hierarchy."""
         return type(self)(command, info_name=command.name, parent=self)
 
     @t.overload
