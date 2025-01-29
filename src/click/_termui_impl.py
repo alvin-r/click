@@ -27,6 +27,8 @@ from ._compat import term_len
 from ._compat import WIN
 from .exceptions import ClickException
 from .utils import echo
+import subprocess
+import tempfile
 
 V = t.TypeVar("V")
 
@@ -520,8 +522,6 @@ class Editor:
         return "vi"
 
     def edit_files(self, filenames: cabc.Iterable[str]) -> None:
-        import subprocess
-
         editor = self.get_editor()
         environ: dict[str, str] | None = None
 
@@ -532,10 +532,11 @@ class Editor:
         exc_filename = " ".join(f'"{filename}"' for filename in filenames)
 
         try:
-            c = subprocess.Popen(
-                args=f"{editor} {exc_filename}", env=environ, shell=True
+            # Use subprocess.run for simpler process handling
+            result = subprocess.run(
+                f"{editor} {exc_filename}", env=environ, shell=True
             )
-            exit_code = c.wait()
+            exit_code = result.returncode
             if exit_code != 0:
                 raise ClickException(
                     _("{editor}: Editing failed").format(editor=editor)
@@ -546,51 +547,40 @@ class Editor:
             ) from e
 
     def edit(self, text: t.AnyStr | None) -> t.AnyStr | None:
-        import tempfile
 
         if not text:
             data = b""
         elif isinstance(text, (bytes, bytearray)):
             data = text
         else:
-            if text and not text.endswith("\n"):
-                text += "\n"
+            text = text.rstrip("\n") + "\n" if text else "\n"
 
             if WIN:
                 data = text.replace("\n", "\r\n").encode("utf-8-sig")
             else:
                 data = text.encode("utf-8")
 
-        fd, name = tempfile.mkstemp(prefix="editor-", suffix=self.extension)
-        f: t.BinaryIO
+        # Using NamedTemporaryFile to avoid manual unlinking later
+        with tempfile.NamedTemporaryFile(prefix="editor-", suffix=self.extension, delete=False, mode='wb+') as tmp:
+            tmp.write(data)
+            tmp.flush()
 
-        try:
-            with os.fdopen(fd, "wb") as f:
-                f.write(data)
+            # Correcting the modified time due to filesystem resolution
+            os.utime(tmp.name, (os.path.getatime(tmp.name), os.path.getmtime(tmp.name) - 2))
+            timestamp = os.path.getmtime(tmp.name)
 
-            # If the filesystem resolution is 1 second, like Mac OS
-            # 10.12 Extended, or 2 seconds, like FAT32, and the editor
-            # closes very fast, require_save can fail. Set the modified
-            # time to be 2 seconds in the past to work around this.
-            os.utime(name, (os.path.getatime(name), os.path.getmtime(name) - 2))
-            # Depending on the resolution, the exact value might not be
-            # recorded, so get the new recorded value.
-            timestamp = os.path.getmtime(name)
+            self.edit_files((tmp.name,))
 
-            self.edit_files((name,))
-
-            if self.require_save and os.path.getmtime(name) == timestamp:
+            if self.require_save and os.path.getmtime(tmp.name) == timestamp:
                 return None
 
-            with open(name, "rb") as f:
-                rv = f.read()
+            tmp.seek(0)
+            rv = tmp.read()
 
-            if isinstance(text, (bytes, bytearray)):
-                return rv
+        if isinstance(text, (bytes, bytearray)):
+            return rv
 
-            return rv.decode("utf-8-sig").replace("\r\n", "\n")  # type: ignore
-        finally:
-            os.unlink(name)
+        return rv.decode("utf-8-sig").replace("\r\n", "\n")  # type: ignore
 
 
 def open_url(url: str, wait: bool = False, locate: bool = False) -> int:
