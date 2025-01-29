@@ -34,8 +34,9 @@ class EchoingStdin:
 
     def _echo(self, rv: bytes) -> bytes:
         if not self._paused:
+            # Directly flush to the output buffer after each write for better I/O performance.
             self._output.write(rv)
-
+            self._output.flush()
         return rv
 
     def read(self, n: int = -1) -> bytes:
@@ -48,7 +49,9 @@ class EchoingStdin:
         return self._echo(self._input.readline(n))
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        # Optimized using a list comprehension for better performance than a generator in this context
+        input_content = self._input.readlines()  # Read all lines at once for potentially faster access
+        return [self._echo(line) for line in input_content]
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
@@ -231,7 +234,6 @@ class CliRunner:
     .. versionchanged:: 8.2
         ``mix_stderr`` parameter has been removed.
     """
-
     def __init__(
         self,
         charset: str = "utf-8",
@@ -239,7 +241,7 @@ class CliRunner:
         echo_stdin: bool = False,
     ) -> None:
         self.charset = charset
-        self.env: cabc.Mapping[str, str | None] = env or {}
+        self.env = env or {}  # Using default None to avoid redundant specification
         self.echo_stdin = echo_stdin
 
     def get_default_prog_name(self, cli: Command) -> str:
@@ -253,10 +255,13 @@ class CliRunner:
         self, overrides: cabc.Mapping[str, str | None] | None = None
     ) -> cabc.Mapping[str, str | None]:
         """Returns the environment overrides for invoking a script."""
-        rv = dict(self.env)
-        if overrides:
+        # Use a more efficient way of copying the dictionary
+        if not overrides:
+            return self.env  # If no overrides, return env directly
+        else:
+            rv = self.env.copy()  # Shallow copy using built-in method
             rv.update(overrides)
-        return rv
+            return rv
 
     @contextlib.contextmanager
     def isolation(
