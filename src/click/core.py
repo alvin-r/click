@@ -916,11 +916,8 @@ class Command:
         #: :class:`Context`\'s :attr:`~Context.info_name` attribute.
         self.name = name
 
-        if context_settings is None:
-            context_settings = {}
-
-        #: an optional dictionary with defaults passed to the context.
-        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings
+        # Improved handling of context_settings to avoid conditional branch
+        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings or {}
 
         #: the callback to execute when the command fires.  This might be
         #: `None` in which case nothing happens.
@@ -1054,12 +1051,8 @@ class Command:
         """Gets short help for the command or makes it by shortening the
         long help string.
         """
-        if self.short_help:
-            text = inspect.cleandoc(self.short_help)
-        elif self.help:
-            text = make_default_short_help(self.help, limit)
-        else:
-            text = ""
+        # Inspect and process the short_help and help directly to avoid function calls
+        text = self.short_help.strip() if self.short_help else make_default_short_help(self.help or "", limit)
 
         if self.deprecated:
             deprecated_message = (
