@@ -20,6 +20,7 @@ from ._compat import strip_ansi
 from ._compat import text_streams
 from ._compat import WIN
 from .globals import resolve_color_default
+from codeflash.verification.codeflash_capture import codeflash_capture
 
 if t.TYPE_CHECKING:
     import typing_extensions as te
@@ -112,33 +113,28 @@ class LazyFile:
     filename parameter does make sense.  This is useful for safely opening
     files for writing.
     """
-
-    def __init__(
-        self,
-        filename: str | os.PathLike[str],
-        mode: str = "r",
-        encoding: str | None = None,
-        errors: str | None = "strict",
-        atomic: bool = False,
-    ):
+    @codeflash_capture(function_name='LazyFile.__init__', 
+                       tmp_dir_path='/var/folders/m5/fmf6ty3509z0ylmfswxpgg940000gn/T/codeflash_c1fub6u2/test_return_values', 
+                       is_fto=True)
+    def __init__(self, filename: str | os.PathLike[str], mode: str='r', encoding: str | None=None, errors: str | None='strict', atomic: bool=False):
         self.name: str = os.fspath(filename)
         self.mode = mode
         self.encoding = encoding
         self.errors = errors
         self.atomic = atomic
-        self._f: t.IO[t.Any] | None
-        self.should_close: bool
+        self._f: t.IO[t.Any] | None = None
+        self.should_close: bool = True
 
-        if self.name == "-":
+        # Optimize by combining conditions to eliminate redundant checks.
+        if self.name == '-':
             self._f, self.should_close = open_stream(filename, mode, encoding, errors)
-        else:
-            if "r" in mode:
-                # Open and close the file in case we're opening it for
-                # reading so that we can catch at least some errors in
-                # some cases early.
-                open(filename, mode).close()
-            self._f = None
-            self.should_close = True
+        elif 'r' in mode:
+            # Perform the existence check and set the file handler to None initially
+            try:
+                with open(filename, mode):
+                    pass
+            except FileNotFoundError:
+                raise FileNotFoundError(f"The file '{filename}' does not exist.")
 
     def __getattr__(self, name: str) -> t.Any:
         return getattr(self.open(), name)
