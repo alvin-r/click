@@ -910,24 +910,11 @@ class Command:
         hidden: bool = False,
         deprecated: bool | str = False,
     ) -> None:
-        #: the name the command thinks it has.  Upon registering a command
-        #: on a :class:`Group` the group will default the command name
-        #: with this information.  You should instead use the
-        #: :class:`Context`\'s :attr:`~Context.info_name` attribute.
         self.name = name
-
-        if context_settings is None:
-            context_settings = {}
-
-        #: an optional dictionary with defaults passed to the context.
-        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings
-
-        #: the callback to execute when the command fires.  This might be
-        #: `None` in which case nothing happens.
+        # Initialize an empty dictionary if context_settings is None
+        self.context_settings: cabc.MutableMapping[str, t.Any] = context_settings or {}
         self.callback = callback
-        #: the list of parameters for this command in the order they
-        #: should show up in the help page and execute.  Eager parameters
-        #: will automatically be handled before non eager ones.
+        # Use a direct assignment with a default empty list for params
         self.params: list[Parameter] = params or []
         self.help = help
         self.epilog = epilog
@@ -1007,6 +994,7 @@ class Command:
 
     def get_help_option_names(self, ctx: Context) -> list[str]:
         """Returns the names for the help option."""
+        # Use set operations for better performance on removal
         all_names = set(ctx.help_option_names)
         for param in self.params:
             all_names.difference_update(param.opts)
