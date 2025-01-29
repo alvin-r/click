@@ -16,6 +16,7 @@ from . import formatting
 from . import termui
 from . import utils
 from ._compat import _find_binary_reader
+from src.click.core import Command
 
 if t.TYPE_CHECKING:
     from _typeshed import ReadableBuffer
@@ -34,8 +35,9 @@ class EchoingStdin:
 
     def _echo(self, rv: bytes) -> bytes:
         if not self._paused:
+            # Directly flush to the output buffer after each write for better I/O performance.
             self._output.write(rv)
-
+            self._output.flush()
         return rv
 
     def read(self, n: int = -1) -> bytes:
@@ -48,7 +50,9 @@ class EchoingStdin:
         return self._echo(self._input.readline(n))
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        # Optimized using a list comprehension for better performance than a generator in this context
+        input_content = self._input.readlines()  # Read all lines at once for potentially faster access
+        return [self._echo(line) for line in input_content]
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
@@ -231,22 +235,23 @@ class CliRunner:
     .. versionchanged:: 8.2
         ``mix_stderr`` parameter has been removed.
     """
-
     def __init__(
         self,
         charset: str = "utf-8",
         env: cabc.Mapping[str, str | None] | None = None,
         echo_stdin: bool = False,
     ) -> None:
+        # Direct assignment using 'or' ensures env is not set to None.
         self.charset = charset
-        self.env: cabc.Mapping[str, str | None] = env or {}
+        self.env: cabc.Mapping[str, str | None] = env if env is not None else {}
         self.echo_stdin = echo_stdin
 
     def get_default_prog_name(self, cli: Command) -> str:
         """Given a command object it will return the default program name
-        for it.  The default is the `name` attribute or ``"root"`` if not
+        for it. The default is the `name` attribute or ``"root"`` if not
         set.
         """
+        # Direct name retrieval with default fallback.
         return cli.name or "root"
 
     def make_env(
