@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import typing as t
+from functools import lru_cache
 from types import TracebackType
 from weakref import WeakKeyDictionary
 
@@ -485,6 +486,7 @@ class _AtomicFile:
         return repr(self._f)
 
 
+@lru_cache(maxsize=None)
 def strip_ansi(value: str) -> str:
     return _ansi_re.sub("", value)
 
