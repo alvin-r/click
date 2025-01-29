@@ -12,7 +12,7 @@ from collections import Counter
 from contextlib import AbstractContextManager
 from contextlib import contextmanager
 from contextlib import ExitStack
-from functools import update_wrapper
+from functools import cmp_to_key, update_wrapper
 from gettext import gettext as _
 from gettext import ngettext
 from itertools import repeat
@@ -121,15 +121,21 @@ def iter_params_for_processing(
     a list in the correct order as they should be processed.
     """
 
-    def sort_key(item: Parameter) -> tuple[bool, float]:
-        try:
-            idx: float = invocation_order.index(item)
-        except ValueError:
-            idx = float("inf")
+    # Create a dictionary for quick index lookup to reduce repeated index searches
+    index_map = {item: idx for idx, item in enumerate(invocation_order)}
 
-        return not item.is_eager, idx
+    def compare_items(item1: Parameter, item2: Parameter) -> int:
+        # Compare based on eagerness first
+        if item1.is_eager != item2.is_eager:
+            return -1 if item1.is_eager else 1
+        
+        # Compare based on their index in the invocation_order
+        idx1 = index_map.get(item1, float("inf"))
+        idx2 = index_map.get(item2, float("inf"))
+        return (idx1 > idx2) - (idx1 < idx2)
 
-    return sorted(declaration_order, key=sort_key)
+    # Use cmp_to_key for converting the comparison function to a key-extracting function
+    return sorted(declaration_order, key=cmp_to_key(compare_items))
 
 
 class ParameterSource(enum.Enum):
