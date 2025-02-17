@@ -15,7 +15,7 @@ from . import _compat
 from . import formatting
 from . import termui
 from . import utils
-from ._compat import _find_binary_reader
+from ._compat import _is_binary_reader, _find_binary_reader
 
 if t.TYPE_CHECKING:
     from _typeshed import ReadableBuffer
@@ -120,21 +120,26 @@ class _NamedTextIOWrapper(io.TextIOWrapper):
 def make_input_stream(
     input: str | bytes | t.IO[t.Any] | None, charset: str
 ) -> t.BinaryIO:
-    # Is already an input stream.
+    # Check if input is already a stream with readable interface
     if hasattr(input, "read"):
-        rv = _find_binary_reader(t.cast("t.IO[t.Any]", input))
+        if _is_binary_reader(input, False):
+            return t.cast(t.BinaryIO, input)
 
-        if rv is not None:
-            return rv
+        buf = getattr(input, "buffer", None)
+        if buf is not None and _is_binary_reader(buf, True):
+            return t.cast(t.BinaryIO, buf)
 
         raise TypeError("Could not find binary reader for input stream.")
 
+    # Handle string or bytes input
     if input is None:
-        input = b""
-    elif isinstance(input, str):
-        input = input.encode(charset)
+        return io.BytesIO(b"")
+    if isinstance(input, str):
+        return io.BytesIO(input.encode(charset))
+    if isinstance(input, bytes):
+        return io.BytesIO(input)
 
-    return io.BytesIO(input)
+    raise TypeError("Invalid input type.")
 
 
 class Result:
