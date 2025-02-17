@@ -35,7 +35,6 @@ class EchoingStdin:
     def _echo(self, rv: bytes) -> bytes:
         if not self._paused:
             self._output.write(rv)
-
         return rv
 
     def read(self, n: int = -1) -> bytes:
@@ -48,7 +47,12 @@ class EchoingStdin:
         return self._echo(self._input.readline(n))
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        if not self._paused:
+            lines = self._input.readlines()
+            self._output.writelines(lines)
+            return lines
+        else:
+            return self._input.readlines()
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
