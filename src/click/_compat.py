@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import typing as t
+from functools import lru_cache
 from types import TracebackType
 from weakref import WeakKeyDictionary
 
@@ -39,10 +40,7 @@ def _make_text_stream(
 
 def is_ascii_encoding(encoding: str) -> bool:
     """Checks if a given encoding is ascii."""
-    try:
-        return codecs.lookup(encoding).name == "ascii"
-    except LookupError:
-        return False
+    return get_codec_name(encoding) == "ascii"
 
 
 def get_best_encoding(stream: t.IO[t.Any]) -> str:
@@ -602,6 +600,15 @@ def _make_cached_stream_func(
         return rv
 
     return func
+
+
+# Caching the result of the codec lookup with LRU cache
+@lru_cache(None)
+def get_codec_name(encoding: str) -> str:
+    try:
+        return codecs.lookup(encoding).name
+    except LookupError:
+        return None
 
 
 _default_text_stdin = _make_cached_stream_func(lambda: sys.stdin, get_text_stdin)
