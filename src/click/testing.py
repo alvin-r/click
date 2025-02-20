@@ -120,20 +120,21 @@ class _NamedTextIOWrapper(io.TextIOWrapper):
 def make_input_stream(
     input: str | bytes | t.IO[t.Any] | None, charset: str
 ) -> t.BinaryIO:
-    # Is already an input stream.
+    # Handle the case where input is already a stream
     if hasattr(input, "read"):
-        rv = _find_binary_reader(t.cast("t.IO[t.Any]", input))
-
-        if rv is not None:
-            return rv
+        binary_reader = _find_binary_reader(t.cast("t.IO[t.Any]", input))
+        if binary_reader is not None:
+            return binary_reader
 
         raise TypeError("Could not find binary reader for input stream.")
 
+    # Handle the case where input is a string or None
     if input is None:
-        input = b""
-    elif isinstance(input, str):
-        input = input.encode(charset)
-
+        return io.BytesIO(b"")
+    if isinstance(input, str):
+        return io.BytesIO(input.encode(charset))
+    
+    # Handle the case where input is bytes
     return io.BytesIO(input)
 
 
