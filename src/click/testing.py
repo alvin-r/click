@@ -168,8 +168,7 @@ class Result:
         return_value: t.Any,
         exit_code: int,
         exception: BaseException | None,
-        exc_info: tuple[type[BaseException], BaseException, TracebackType]
-        | None = None,
+        exc_info: tuple[type[BaseException], BaseException, TracebackType] | None = None,
     ):
         self.runner = runner
         self.stdout_bytes = stdout_bytes
@@ -212,7 +211,7 @@ class Result:
 
     def __repr__(self) -> str:
         exc_str = repr(self.exception) if self.exception else "okay"
-        return f"<{type(self).__name__} {exc_str}>"
+        return f"<Result {exc_str}>"
 
 
 class CliRunner:
