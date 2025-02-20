@@ -35,7 +35,6 @@ class EchoingStdin:
     def _echo(self, rv: bytes) -> bytes:
         if not self._paused:
             self._output.write(rv)
-
         return rv
 
     def read(self, n: int = -1) -> bytes:
@@ -45,10 +44,27 @@ class EchoingStdin:
         return self._echo(self._input.read1(n))  # type: ignore
 
     def readline(self, n: int = -1) -> bytes:
-        return self._echo(self._input.readline(n))
+        # Directly read from input and echo it
+        rv = self._input.readline(n)
+        if not self._paused:
+            self._output.write(rv)
+        return rv
 
     def readlines(self) -> list[bytes]:
-        return [self._echo(x) for x in self._input.readlines()]
+        echo = self._echo
+        output_write = self._output.write
+
+        if self._paused:
+            # Directly return lines when paused, without echoing
+            return [line for line in self._input.readlines()]
+        
+        # Directly process and echo lines to avoid the overhead of calling self._echo repeatedly
+        lines = []
+        for line in self._input:
+            output_write(line)
+            lines.append(line)
+
+        return lines
 
     def __iter__(self) -> cabc.Iterator[bytes]:
         return iter(self._echo(x) for x in self._input)
